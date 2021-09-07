@@ -1,13 +1,11 @@
 #include "pch.h"
 
+#include <common/utils/HttpClient.h>
 #include <common/version/version.h>
 #include <common/version/helper.h>
 
-#include "http_client.h"
-#include "notifications.h"
 #include "updating.h"
 
-#include <common/notifications/notifications.h>
 #include <common/SettingsAPI/settings_helpers.h>
 #include <common/utils/json.h>
 
@@ -38,14 +36,7 @@ namespace updating
 
     std::optional<VersionHelper> extract_version_from_release_object(const json::JsonObject& release_object)
     {
-        try
-        {
-            return VersionHelper{ winrt::to_string(release_object.GetNamedString(L"tag_name")) };
-        }
-        catch (...)
-        {
-        }
-        return std::nullopt;
+        return VersionHelper::fromString(release_object.GetNamedString(L"tag_name"));
     }
 
     std::pair<Uri, std::wstring> extract_installer_asset_download_info(const json::JsonObject& release_object)
@@ -76,7 +67,7 @@ namespace updating
         throw std::runtime_error("Release object doesn't have the required asset");
     }
 
-    std::future<nonstd::expected<github_version_info, std::wstring>> get_github_version_info_async(const notifications::strings& strings, const bool prerelease)
+    std::future<nonstd::expected<github_version_info, std::wstring>> get_github_version_info_async(const bool prerelease)
     {
         // If the current version starts with 0.0.*, it means we're on a local build from a farm and shouldn't check for updates.
         if (VERSION_MAJOR == 0 && VERSION_MINOR == 0)

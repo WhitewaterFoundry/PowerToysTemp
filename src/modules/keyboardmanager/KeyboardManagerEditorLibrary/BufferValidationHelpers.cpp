@@ -3,6 +3,7 @@
 
 #include <common/interop/shared_constants.h>
 #include <keyboardmanager/common/KeyboardManagerConstants.h>
+#include <keyboardmanager/common/Helpers.h>
 
 #include "KeyboardManagerEditorStrings.h"
 #include "KeyDropDownControl.h"
@@ -12,6 +13,13 @@
 
 namespace BufferValidationHelpers
 {
+    // Helper function to verify if a key is being remapped to/from its combined key
+    bool IsKeyRemappingToItsCombinedKey(DWORD keyCode1, DWORD keyCode2)
+    {
+        return (keyCode1 == Helpers::GetCombinedKey(keyCode1) || keyCode2 == Helpers::GetCombinedKey(keyCode2)) &&
+               Helpers::GetCombinedKey(keyCode1) == Helpers::GetCombinedKey(keyCode2);
+    }
+
     // Function to validate and update an element of the key remap buffer when the selection has changed
     ShortcutErrorType ValidateAndUpdateKeyBufferElement(int rowIndex, int colIndex, int selectedKeyCode, RemapBuffer& remapBuffer)
     {
@@ -23,7 +31,8 @@ namespace BufferValidationHelpers
             // Check if the value being set is the same as the other column
             if (remapBuffer[rowIndex].first[std::abs(int(colIndex) - 1)].index() == 0)
             {
-                if (std::get<DWORD>(remapBuffer[rowIndex].first[std::abs(int(colIndex) - 1)]) == selectedKeyCode)
+                DWORD otherColumnKeyCode = std::get<DWORD>(remapBuffer[rowIndex].first[std::abs(int(colIndex) - 1)]);
+                if (otherColumnKeyCode == selectedKeyCode || IsKeyRemappingToItsCombinedKey(selectedKeyCode, otherColumnKeyCode))
                 {
                     errorType = ShortcutErrorType::MapToSameKey;
                 }
@@ -56,17 +65,17 @@ namespace BufferValidationHelpers
             // If there is no error, set the buffer
             if (errorType == ShortcutErrorType::NoError)
             {
-                remapBuffer[rowIndex].first[colIndex] = selectedKeyCode;
+                remapBuffer[rowIndex].first[colIndex] = (DWORD)selectedKeyCode;
             }
             else
             {
-                remapBuffer[rowIndex].first[colIndex] = NULL;
+                remapBuffer[rowIndex].first[colIndex] = (DWORD)0;
             }
         }
         else
         {
             // Reset to null if the key is not found
-            remapBuffer[rowIndex].first[colIndex] = NULL;
+            remapBuffer[rowIndex].first[colIndex] = (DWORD)0;
         }
 
         return errorType;
@@ -214,7 +223,7 @@ namespace BufferValidationHelpers
             KeyShortcutUnion tempShortcut;
             if (isHybridControl && KeyDropDownControl::GetNumberOfSelectedKeys(selectedCodes) == 1)
             {
-                tempShortcut = *std::find_if(selectedCodes.begin(), selectedCodes.end(), [](int32_t a) { return a != -1 && a != 0; });
+                tempShortcut = (DWORD)*std::find_if(selectedCodes.begin(), selectedCodes.end(), [](int32_t a) { return a != -1 && a != 0; });
             }
             else
             {
@@ -251,7 +260,9 @@ namespace BufferValidationHelpers
                 // If key to key
                 if (remapBuffer[rowIndex].first[std::abs(int(colIndex) - 1)].index() == 0)
                 {
-                    if (std::get<DWORD>(remapBuffer[rowIndex].first[std::abs(int(colIndex) - 1)]) == std::get<DWORD>(tempShortcut) && std::get<DWORD>(remapBuffer[rowIndex].first[std::abs(int(colIndex) - 1)]) != NULL && std::get<DWORD>(tempShortcut) != NULL)
+                    DWORD otherColumnKeyCode = std::get<DWORD>(remapBuffer[rowIndex].first[std::abs(int(colIndex) - 1)]);
+                    DWORD shortcutKeyCode = std::get<DWORD>(tempShortcut);
+                    if ((otherColumnKeyCode == shortcutKeyCode || IsKeyRemappingToItsCombinedKey(otherColumnKeyCode, shortcutKeyCode)) && otherColumnKeyCode != NULL && shortcutKeyCode != NULL)
                     {
                         errorType = ShortcutErrorType::MapToSameKey;
                     }

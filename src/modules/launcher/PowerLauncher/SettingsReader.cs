@@ -2,7 +2,6 @@
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Abstractions;
@@ -39,6 +38,10 @@ namespace PowerLauncher
             _settings = settings;
             _themeManager = themeManager;
 
+            var overloadSettings = _settingsUtils.GetSettingsOrDefault<PowerLauncherSettings>(PowerLauncherSettings.ModuleName);
+            UpdateSettings(overloadSettings);
+            _settingsUtils.SaveSettings(overloadSettings.ToJsonString(), PowerLauncherSettings.ModuleName);
+
             // Apply theme at startup
             _themeManager.ChangeTheme(_settings.Theme, true);
         }
@@ -57,7 +60,14 @@ namespace PowerLauncher
 
         public void ReadSettingsOnChange()
         {
-            _watcher = Microsoft.PowerToys.Settings.UI.Library.Utilities.Helper.GetFileWatcher(PowerLauncherSettings.ModuleName, "settings.json", ReadSettings);
+            _watcher = Microsoft.PowerToys.Settings.UI.Library.Utilities.Helper.GetFileWatcher(
+                PowerLauncherSettings.ModuleName,
+                "settings.json",
+                () =>
+                {
+                    Log.Info("Settings were changed. Read settings.", GetType());
+                    ReadSettings();
+                });
         }
 
         public void ReadSettings()
@@ -73,20 +83,15 @@ namespace PowerLauncher
                     CreateSettingsIfNotExists();
 
                     var overloadSettings = _settingsUtils.GetSettingsOrDefault<PowerLauncherSettings>(PowerLauncherSettings.ModuleName);
-
-                    if (overloadSettings.Plugins == null || overloadSettings.Plugins.Count() != PluginManager.AllPlugins.Count)
+                    if (overloadSettings != null)
                     {
-                        // Needed to be consistent with old settings
-                        overloadSettings.Plugins = CombineWithDefaultSettings(overloadSettings.Plugins);
-                        _settingsUtils.SaveSettings(overloadSettings.ToJsonString(), PowerLauncherSettings.ModuleName);
+                        Log.Info($"Successfully read new settings. retryCount={retryCount}", GetType());
                     }
-                    else
+
+                    foreach (var setting in overloadSettings.Plugins)
                     {
-                        foreach (var setting in overloadSettings.Plugins)
-                        {
-                            var plugin = PluginManager.AllPlugins.FirstOrDefault(x => x.Metadata.ID == setting.Id);
-                            plugin?.Update(setting, App.API);
-                        }
+                        var plugin = PluginManager.AllPlugins.FirstOrDefault(x => x.Metadata.ID == setting.Id);
+                        plugin?.Update(setting, App.API);
                     }
 
                     var openPowerlauncher = ConvertHotkey(overloadSettings.Properties.OpenPowerLauncher);
@@ -168,18 +173,10 @@ namespace PowerLauncher
             return model.ToString();
         }
 
-        private static List<PowerLauncherPluginSettings> CombineWithDefaultSettings(IEnumerable<PowerLauncherPluginSettings> plugins)
+        private static string GetIcon(PluginMetadata metadata, string iconPath)
         {
-            var results = GetDefaultPluginsSettings().ToDictionary(x => x.Id);
-            foreach (var plugin in plugins)
-            {
-                if (results.ContainsKey(plugin.Id))
-                {
-                    results[plugin.Id] = plugin;
-                }
-            }
-
-            return results.Values.ToList();
+            var pluginDirectory = Path.GetFileName(metadata.PluginDirectory);
+            return Path.Combine(pluginDirectory, iconPath);
         }
 
         private static IEnumerable<PowerLauncherPluginSettings> GetDefaultPluginsSettings()
@@ -193,10 +190,45 @@ namespace PowerLauncher
                 Disabled = x.Metadata.Disabled,
                 IsGlobal = x.Metadata.IsGlobal,
                 ActionKeyword = x.Metadata.ActionKeyword,
-                IconPathDark = x.Metadata.IcoPathDark,
-                IconPathLight = x.Metadata.IcoPathLight,
+                IconPathDark = GetIcon(x.Metadata, x.Metadata.IcoPathDark),
+                IconPathLight = GetIcon(x.Metadata, x.Metadata.IcoPathLight),
                 AdditionalOptions = x.Plugin is ISettingProvider ? (x.Plugin as ISettingProvider).AdditionalOptions : new List<PluginAdditionalOption>(),
             });
+        }
+
+        /// <summary>
+        /// Add new plugins and updates additional options for existing ones
+        /// </summary>
+        private static void UpdateSettings(PowerLauncherSettings settings)
+        {
+            var defaultPlugins = GetDefaultPluginsSettings().ToDictionary(x => x.Id);
+            foreach (PowerLauncherPluginSettings plugin in settings.Plugins)
+            {
+                if (defaultPlugins.ContainsKey(plugin.Id))
+                {
+                    var additionalOptions = CombineAdditionalOptions(defaultPlugins[plugin.Id].AdditionalOptions, plugin.AdditionalOptions);
+                    plugin.Name = defaultPlugins[plugin.Id].Name;
+                    plugin.Description = defaultPlugins[plugin.Id].Description;
+                    defaultPlugins[plugin.Id] = plugin;
+                    defaultPlugins[plugin.Id].AdditionalOptions = additionalOptions;
+                }
+            }
+
+            settings.Plugins = defaultPlugins.Values.ToList();
+        }
+
+        private static IEnumerable<PluginAdditionalOption> CombineAdditionalOptions(IEnumerable<PluginAdditionalOption> defaultAdditionalOptions, IEnumerable<PluginAdditionalOption> additionalOptions)
+        {
+            var defaultOptions = defaultAdditionalOptions.ToDictionary(x => x.Key);
+            foreach (var option in additionalOptions)
+            {
+                if (defaultOptions.ContainsKey(option.Key))
+                {
+                    defaultOptions[option.Key].Value = option.Value;
+                }
+            }
+
+            return defaultOptions.Values;
         }
     }
 }
