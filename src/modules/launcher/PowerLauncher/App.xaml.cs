@@ -8,10 +8,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Windows;
+using Common.UI;
 using interop;
 using ManagedCommon;
 using Microsoft.PowerLauncher.Telemetry;
-using Microsoft.PowerToys.Common.UI;
 using Microsoft.PowerToys.Telemetry;
 using PowerLauncher.Helper;
 using PowerLauncher.Plugin;
@@ -46,7 +46,7 @@ namespace PowerLauncher
         [STAThread]
         public static void Main()
         {
-            Log.Info($"Starting PowerToys Run with PID={Process.GetCurrentProcess().Id}", typeof(App));
+            Log.Info($"Starting PowerToys Run with PID={Environment.ProcessId}", typeof(App));
             int powerToysPid = GetPowerToysPId();
             if (powerToysPid != 0)
             {

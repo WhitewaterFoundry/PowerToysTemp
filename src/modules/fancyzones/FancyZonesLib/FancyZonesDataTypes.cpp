@@ -178,7 +178,7 @@ namespace FancyZonesDataTypes
         }
 
         /*
-        Refer to ZoneWindowUtils::GenerateUniqueId parts contain:
+        Refer to FancyZonesUtils::GenerateUniqueId parts contain:
         1. monitor id [string]
         2. width of device [int]
         3. height of device [int]
@@ -258,7 +258,7 @@ namespace FancyZonesDataTypes
         }
 
         /*
-        Refer to ZoneWindowUtils::GenerateUniqueId parts contain:
+        Refer to FancyZonesUtils::GenerateUniqueId parts contain:
         1. monitor id [string]
         2. width of device [int]
         3. height of device [int]
@@ -304,10 +304,5 @@ namespace FancyZonesDataTypes
         }
 
         return result;
-    }
-
-    bool DeviceIdData::isEqualWithNullVirtualDesktopId(const DeviceIdData& other) const
-    {
-        return deviceName.compare(other.deviceName) == 0 && width == other.width && height == other.height && (virtualDesktopId == other.virtualDesktopId || virtualDesktopId == GUID_NULL || other.virtualDesktopId == GUID_NULL) && monitorId.compare(other.monitorId) == 0;
     }
 }

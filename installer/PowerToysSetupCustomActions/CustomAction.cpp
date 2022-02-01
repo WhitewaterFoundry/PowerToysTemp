@@ -1,13 +1,15 @@
 #include "stdafx.h"
 #include "resource.h"
+#include "RcResource.h"
 #include <ProjectTelemetry.h>
 
+#include <spdlog/sinks/base_sink.h>
+
+#include "../../src/common/logger/logger.h"
 #include "../../src/common/utils/MsiUtils.h"
 #include "../../src/common/utils/modulesRegistry.h"
 #include "../../src/common/updating/installer.h"
 #include "../../src/common/version/version.h"
-
-#include "../../installer/PowerToysBootstrapper/bootstrapper/RcResource.h"
 
 using namespace std;
 
@@ -26,6 +28,24 @@ const DWORD USERNAME_LEN = UNLEN + 1; // User Name + '\0'
 static const wchar_t* POWERTOYS_EXE_COMPONENT = L"{A2C66D91-3485-4D00-B04D-91844E6B345B}";
 static const wchar_t* POWERTOYS_UPGRADE_CODE = L"{42B84BF7-5FBF-473B-9C8B-049DC16F7708}";
 
+struct WcaSink : spdlog::sinks::base_sink<std::mutex>
+{
+    virtual void sink_it_(const spdlog::details::log_msg& msg) override
+    {
+        WcaLog(LOGMSG_STANDARD, msg.payload.data());
+    }
+    virtual void flush_() override
+    {
+        // we don't need to flush wca log manually
+    }
+};
+
+void initSystemLogger()
+{
+    static std::once_flag initLoggerFlag;
+    std::call_once(initLoggerFlag, []() { Logger::init(std::vector<spdlog::sink_ptr>{ std::make_shared<WcaSink>() }); });
+}
+
 HRESULT getInstallFolder(MSIHANDLE hInstall, std::wstring& installationDir)
 {
     DWORD len = 0;
@@ -34,7 +54,7 @@ HRESULT getInstallFolder(MSIHANDLE hInstall, std::wstring& installationDir)
     len += 1;
     installationDir.resize(len);
     HRESULT hr = MsiGetPropertyW(hInstall, L"CustomActionData", installationDir.data(), &len);
-    if(installationDir.length())
+    if (installationDir.length())
     {
         installationDir.resize(installationDir.length() - 1);
     }
@@ -44,24 +64,30 @@ LExit:
 }
 UINT __stdcall ApplyModulesRegistryChangeSetsCA(MSIHANDLE hInstall)
 {
+    initSystemLogger();
     HRESULT hr = S_OK;
     UINT er = ERROR_SUCCESS;
     std::wstring installationFolder;
+    bool failedToApply = false;
 
     hr = WcaInitialize(hInstall, "ApplyModulesRegistryChangeSets");
     ExitOnFailure(hr, "Failed to initialize");
     hr = getInstallFolder(hInstall, installationFolder);
     ExitOnFailure(hr, "Failed to get installFolder.");
-    for (const auto& changeSet : getAllModulesChangeSets(installationFolder, false))
+
+    for (const auto& changeSet : getAllModulesChangeSets(installationFolder))
     {
         if (!changeSet.apply())
         {
             WcaLog(LOGMSG_STANDARD, "Couldn't apply registry changeSet");
+            failedToApply = true;
         }
     }
 
-    ExitOnFailure(hr, "Failed to extract msix");
-
+    if (!failedToApply)
+    {
+        WcaLog(LOGMSG_STANDARD, "All registry changeSets applied successfully");
+    }
 LExit:
     er = SUCCEEDED(hr) ? ERROR_SUCCESS : ERROR_INSTALL_FAILURE;
     return WcaFinalize(er);
@@ -69,6 +95,7 @@ LExit:
 
 UINT __stdcall UnApplyModulesRegistryChangeSetsCA(MSIHANDLE hInstall)
 {
+    initSystemLogger();
     HRESULT hr = S_OK;
     UINT er = ERROR_SUCCESS;
     std::wstring installationFolder;
@@ -77,7 +104,7 @@ UINT __stdcall UnApplyModulesRegistryChangeSetsCA(MSIHANDLE hInstall)
     ExitOnFailure(hr, "Failed to initialize");
     hr = getInstallFolder(hInstall, installationFolder);
     ExitOnFailure(hr, "Failed to get installFolder.");
-    for (const auto& changeSet : getAllModulesChangeSets(installationFolder, false))
+    for (const auto& changeSet : getAllModulesChangeSets(installationFolder))
     {
         changeSet.unApply();
     }
@@ -720,12 +747,12 @@ UINT __stdcall DetectPrevInstallPathCA(MSIHANDLE hInstall)
     HRESULT hr = S_OK;
     UINT er = ERROR_SUCCESS;
     hr = WcaInitialize(hInstall, "DetectPrevInstallPathCA");
-
+    MsiSetPropertyW(hInstall, L"PREVIOUSINSTALLFOLDER", L"");
     try
     {
         if (auto install_path = GetMsiPackageInstalledPath())
         {
-            MsiSetPropertyW(hInstall, L"INSTALLFOLDER", install_path->data());
+            MsiSetPropertyW(hInstall, L"PREVIOUSINSTALLFOLDER", install_path->data());
         }
     }
     catch (...)
@@ -910,14 +937,15 @@ UINT __stdcall TerminateProcessesCA(MSIHANDLE hInstall)
     }
     processes.resize(bytes / sizeof(processes[0]));
 
-    std::array<std::wstring_view, 8> processesToTerminate = {
-        L"PowerLauncher.exe",
+    std::array<std::wstring_view, 9> processesToTerminate = {
+        L"PowerToys.PowerLauncher.exe",
         L"PowerToys.Settings.exe",
         L"PowerToys.Awake.exe",
         L"PowerToys.FancyZones.exe",
-        L"Microsoft.PowerToys.Settings.UI.exe",
-        L"FancyZonesEditor.exe",
-        L"ColorPickerUI.exe",
+        L"PowerToys.Settings.UI.exe",
+        L"PowerToys.FancyZonesEditor.exe",
+        L"PowerToys.ColorPickerUI.exe",
+        L"PowerToys.AlwaysOnTop.exe",
         L"PowerToys.exe"
     };
 

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -75,10 +75,7 @@
     <ClInclude Include="KeyState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ZoneWindowDrawing.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="CallTracer.h">
+    <ClInclude Include="ZonesOverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MonitorUtils.h">
@@ -91,6 +88,30 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GuidUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FancyZonesData\AppZoneHistory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FancyZonesData\AppliedLayouts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FancyZonesData\CustomLayouts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FancyZonesData\LayoutHotkeys.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ModuleConstants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FancyZonesData\LayoutTemplates.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FancyZonesData\LayoutDefaults.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FancyZonesData\Layout.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -143,16 +164,28 @@
     <ClCompile Include="FancyZonesDataTypes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ZoneWindowDrawing.cpp">
+    <ClCompile Include="ZonesOverlay.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="OnThreadExecutor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CallTracer.cpp">
+    <ClCompile Include="MonitorUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MonitorUtils.cpp">
+    <ClCompile Include="FancyZonesData\CustomLayouts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FancyZonesData\LayoutHotkeys.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FancyZonesData\AppZoneHistory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FancyZonesData\AppliedLayouts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FancyZonesData\LayoutTemplates.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

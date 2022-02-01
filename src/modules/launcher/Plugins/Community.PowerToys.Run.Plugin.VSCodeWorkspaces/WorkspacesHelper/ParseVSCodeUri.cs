@@ -16,7 +16,9 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper
 
         private static readonly Regex CodespacesWorkspace = new Regex(@"^vscode-remote://vsonline\+(.+?(?=\/))(.+)$", RegexOptions.Compiled);
 
-        public static (TypeWorkspace? TypeWorkspace, string MachineName, string Path) GetTypeWorkspace(string uri)
+        private static readonly Regex DevContainerWorkspace = new Regex(@"^vscode-remote://dev-container\+(.+?(?=\/))(.+)$", RegexOptions.Compiled);
+
+        public static (WorkspaceEnvironment? WorkspaceEnvironment, string MachineName, string Path) GetWorkspaceEnvironment(string uri)
         {
             if (LocalWorkspace.IsMatch(uri))
             {
@@ -24,7 +26,7 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper
 
                 if (match.Groups.Count > 1)
                 {
-                    return (TypeWorkspace.Local, null, match.Groups[1].Value);
+                    return (WorkspaceEnvironment.Local, null, match.Groups[1].Value);
                 }
             }
             else if (RemoteSSHWorkspace.IsMatch(uri))
@@ -33,7 +35,7 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper
 
                 if (match.Groups.Count > 1)
                 {
-                    return (TypeWorkspace.RemoteSSH, match.Groups[1].Value, match.Groups[2].Value);
+                    return (WorkspaceEnvironment.RemoteSSH, match.Groups[1].Value, match.Groups[2].Value);
                 }
             }
             else if (RemoteWSLWorkspace.IsMatch(uri))
@@ -42,7 +44,7 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper
 
                 if (match.Groups.Count > 1)
                 {
-                    return (TypeWorkspace.RemoteWSL, match.Groups[1].Value, match.Groups[2].Value);
+                    return (WorkspaceEnvironment.RemoteWSL, match.Groups[1].Value, match.Groups[2].Value);
                 }
             }
             else if (CodespacesWorkspace.IsMatch(uri))
@@ -51,7 +53,16 @@ namespace Community.PowerToys.Run.Plugin.VSCodeWorkspaces.WorkspacesHelper
 
                 if (match.Groups.Count > 1)
                 {
-                    return (TypeWorkspace.Codespaces, string.Empty, match.Groups[2].Value);
+                    return (WorkspaceEnvironment.Codespaces, null, match.Groups[2].Value);
+                }
+            }
+            else if (DevContainerWorkspace.IsMatch(uri))
+            {
+                var match = DevContainerWorkspace.Match(uri);
+
+                if (match.Groups.Count > 1)
+                {
+                    return (WorkspaceEnvironment.DevContainer, null, match.Groups[2].Value);
                 }
             }
 

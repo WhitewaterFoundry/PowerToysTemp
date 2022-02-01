@@ -9,10 +9,10 @@ using System.Windows.Automation;
 using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Input;
+using Common.UI;
 using FancyZonesEditor.Logs;
 using FancyZonesEditor.Models;
 using FancyZonesEditor.Utils;
-using Microsoft.PowerToys.Common.UI;
 using ModernWpf.Controls;
 
 namespace FancyZonesEditor
@@ -250,7 +250,8 @@ namespace FancyZonesEditor
             model.Persist();
 
             App.Overlay.SetLayoutSettings(App.Overlay.Monitors[App.Overlay.CurrentDesktop], model);
-            App.FancyZonesEditorIO.SerializeZoneSettings();
+            App.FancyZonesEditorIO.SerializeAppliedLayouts();
+            App.FancyZonesEditorIO.SerializeCustomLayouts();
         }
 
         private void Announce(string name, string message)
@@ -271,7 +272,8 @@ namespace FancyZonesEditor
             {
                 _settings.SetAppliedModel(model);
                 App.Overlay.SetLayoutSettings(App.Overlay.Monitors[App.Overlay.CurrentDesktop], model);
-                App.FancyZonesEditorIO.SerializeZoneSettings();
+                App.FancyZonesEditorIO.SerializeAppliedLayouts();
+                App.FancyZonesEditorIO.SerializeCustomLayouts();
             }
         }
 
@@ -280,7 +282,10 @@ namespace FancyZonesEditor
             Logger.LogTrace();
             CancelLayoutChanges();
 
-            App.FancyZonesEditorIO.SerializeZoneSettings();
+            App.FancyZonesEditorIO.SerializeAppliedLayouts();
+            App.FancyZonesEditorIO.SerializeCustomLayouts();
+            App.FancyZonesEditorIO.SerializeLayoutHotkeys();
+            App.FancyZonesEditorIO.SerializeLayoutTemplates();
             App.Overlay.CloseLayoutWindow();
             App.Current.Shutdown();
         }
@@ -314,6 +319,8 @@ namespace FancyZonesEditor
                 _backup = new CanvasLayoutModel(canvas);
             }
 
+            Keyboard.ClearFocus();
+            EditLayoutDialogTitle.Text = string.Format(Properties.Resources.Edit_Template, ((LayoutModel)dataContext).Name);
             await EditLayoutDialog.ShowAsync();
         }
 
@@ -421,7 +428,10 @@ namespace FancyZonesEditor
                 App.Overlay.SetLayoutSettings(App.Overlay.Monitors[App.Overlay.CurrentDesktop], model);
             }
 
-            App.FancyZonesEditorIO.SerializeZoneSettings();
+            App.FancyZonesEditorIO.SerializeAppliedLayouts();
+            App.FancyZonesEditorIO.SerializeCustomLayouts();
+            App.FancyZonesEditorIO.SerializeLayoutTemplates();
+            App.FancyZonesEditorIO.SerializeLayoutHotkeys();
 
             // reset selected model
             Select(_settings.AppliedModel);
@@ -465,7 +475,8 @@ namespace FancyZonesEditor
                     }
                 }
 
-                App.FancyZonesEditorIO.SerializeZoneSettings();
+                App.FancyZonesEditorIO.SerializeAppliedLayouts();
+                App.FancyZonesEditorIO.SerializeCustomLayouts();
                 model.Delete();
             }
         }
@@ -545,6 +556,12 @@ namespace FancyZonesEditor
         private void SettingsBtn_Click(object sender, RoutedEventArgs e)
         {
             SettingsDeepLink.OpenSettings(SettingsDeepLink.SettingsWindow.FancyZones);
+        }
+
+        private void EditLayoutDialogTitle_Loaded(object sender, EventArgs e)
+        {
+            EditLayoutDialogTitle.TextTrimming = TextTrimming.CharacterEllipsis;
+            EditLayoutDialogTitle.TextWrapping = TextWrapping.NoWrap;
         }
     }
 }

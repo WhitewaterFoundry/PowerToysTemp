@@ -2,7 +2,7 @@ name: "🐛 Bug report"
 description: Report errors or unexpected behavior
 labels: 
 - Issue-Bug
-- Triage-Needed
+- Needs-Triage
 body:
 - type: markdown
   attributes:
@@ -12,7 +12,7 @@ body:
   attributes:
     label: Microsoft PowerToys version
     placeholder: |
-      "0.33.1"
+      "0.53.0"
     description: |
       Hover over system tray icon or look at Settings
   validations:
@@ -32,8 +32,10 @@ body:
     multiple: true
     options:
       - General
+      - Always on Top
       - Awake
       - ColorPicker
+      - Developer file preview
       - FancyZones
       - FancyZones Editor 
       - Image Resizer
@@ -42,12 +44,16 @@ body:
       - Mouse Utilities
       - PDF Preview
       - PDF Thumbnail
+      - G-code Preview
+      - G-code Thumbnail
       - PowerRename
       - PowerToys Run
       - Shortcut Guide
+      - STL Thumbnail
       - SVG Preview
       - SVG Thumbnail
       - Settings
+      - Video Conference Mute
       - Welcome / PowerToys Tour window
       - System tray interaction
       - Installer
@@ -74,7 +80,7 @@ body:
     label: ❌ Actual Behavior
     placeholder: What happened instead?
   validations:
-    required: true
+    required: false
 
 - type: textarea
   attributes:

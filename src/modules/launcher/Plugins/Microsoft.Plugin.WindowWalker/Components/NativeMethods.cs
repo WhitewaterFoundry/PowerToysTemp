@@ -249,7 +249,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
-        /// Window attribute
+        /// DWM window attribute (Windows 7 and earlier: The values between ExcludedFromPeek and Last aren't supported.)
         /// </summary>
         [Flags]
         public enum DwmWindowAttribute
@@ -266,7 +266,30 @@ namespace Microsoft.Plugin.WindowWalker.Components
             HasIconicBitmap,
             DisallowPeek,
             ExcludedFromPeek,
+            Cloak,
+            Cloaked,
+            FreezeRepresentation,
+            PassiveUpdateMode,
+            UseHostbackdropbrush,
+            UseImmersiveDarkMode,
+            WindowCornerPreference,
+            BorderColor,
+            CaptionColor,
+            TextColor,
+            VisibleFrameBorderThickness,
             Last,
+        }
+
+        /// <summary>
+        /// Flags for describing the window cloak state (Windows 7 and earlier: This value is not supported.)
+        /// </summary>
+        [Flags]
+        public enum DwmWindowCloakState
+        {
+            None = 0,
+            CloakedApp = 1,
+            CloakedShell = 2,
+            CloakedInherited = 4,
         }
 
         /// <summary>
@@ -645,8 +668,18 @@ namespace Microsoft.Plugin.WindowWalker.Components
         /// <summary>
         /// GetWindowLong index to retrieves the extended window styles.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.NamingRules", "SA1310:Field names should not contain underscore", Justification = "Matching interop var")]
         public const int GWL_EXSTYLE = -20;
+
+        /// <summary>
+        /// A window receives this message when the user chooses a command from the Window menu (formerly known as the system or control menu)
+        /// or when the user chooses the maximize button, minimize button, restore button, or close button.
+        /// </summary>
+        public const int WM_SYSCOMMAND = 0x0112;
+
+        /// <summary>
+        /// Restores the window to its normal position and size.
+        /// </summary>
+        public const int SC_RESTORE = 0xf120;
 
         /// <summary>
         /// The following are the extended window styles
@@ -859,7 +892,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         [DllImport("user32.dll", SetLastError = true, BestFitMapping = false)]
         public static extern IntPtr GetProp(IntPtr hWnd, string lpString);
 
-        [DllImport("kernel32.dll")]
+        [DllImport("kernel32.dll", SetLastError = true)]
         public static extern IntPtr OpenProcess(ProcessAccessFlags dwDesiredAccess, [MarshalAs(UnmanagedType.Bool)] bool bInheritHandle, int dwProcessId);
 
         [DllImport("dwmapi.dll", EntryPoint = "#113", CallingConvention = CallingConvention.StdCall)]
@@ -877,5 +910,40 @@ namespace Microsoft.Plugin.WindowWalker.Components
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetWindowPlacement(IntPtr hWnd, out WINDOWPLACEMENT lpwndpl);
+
+        [DllImport("user32.dll")]
+        public static extern int SendMessage(IntPtr hWnd, int msg, int wParam);
+
+        [DllImport("kernel32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetShellWindow();
+
+        /// <summary>
+        /// Returns the last Win32 Error code thrown by a native method if enabled for this method.
+        /// </summary>
+        /// <returns>The error code as int value.</returns>
+        public static int GetLastWin32Error()
+        {
+            return Marshal.GetLastWin32Error();
+        }
+
+        /// <summary>
+        /// Validate that the handle is not null and close it.
+        /// </summary>
+        /// <param name="handle">Handle to close.</param>
+        /// <returns>Zero if native method fails and nonzero if the native method succeeds.</returns>
+        public static bool CloseHandleIfNotNull(IntPtr handle)
+        {
+            if (handle == IntPtr.Zero)
+            {
+                // Return true if there is nothing to close.
+                return true;
+            }
+
+            return CloseHandle(handle);
+        }
     }
 }

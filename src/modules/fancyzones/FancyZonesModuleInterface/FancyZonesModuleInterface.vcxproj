@@ -29,6 +29,12 @@
   <PropertyGroup>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\modules\FancyZones\</OutDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <TargetName>PowerToys.FancyZonesModuleInterface</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TargetName>PowerToys.FancyZonesModuleInterface</TargetName>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>FANCYZONES_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -55,6 +61,9 @@
     </ProjectReference>
     <ProjectReference Include="..\..\..\common\logger\logger.vcxproj">
       <Project>{d9b8fc84-322a-4f9f-bbb9-20915c47ddfd}</Project>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\common\SettingsAPI\SetttingsAPI.vcxproj">
+      <Project>{6955446d-23f7-4023-9bb3-8657f904af99}</Project>
     </ProjectReference>
     <ProjectReference Include="..\FancyZonesLib\FancyZonesLib.vcxproj">
       <Project>{f9c68edf-ac74-4b77-9af1-005d9c9f6a99}</Project>

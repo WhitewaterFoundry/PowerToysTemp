@@ -1,8 +1,13 @@
 # See https://github.com/check-spelling/check-spelling/wiki/Configuration-Examples:-excludes
+(?:^|/)monacoSRC/
+(?:^|/)MonacoPreviewHandler/languages.json
+(?:^|/)MonacoPreviewHandler/index.html
+(?:^|/)MonacoPreviewHandler/generateLanguagesJson.html
 (?:^|/)(?i)COPYRIGHT
 (?:^|/)(?i)LICEN[CS]E
 (?:^|/)package(?:-lock)\.json$
 (?:^|/)vendor/
+(?:^|/)WindowsSettings\.json$
 /package(?:-lock|)\.json$
 /pinyindb/
 /settings-html/
@@ -12,6 +17,8 @@ ignore$
 \.bmp$
 \.dat$
 \.dll$
+\.filters$
+\.gcode$
 \.gif$
 \.gitignore$
 \.ico$
@@ -23,9 +30,11 @@ ignore$
 \.pdf$
 \.PNG$
 \.png$
+\.stl$
 \.woff$
 \.zip$
 ^doc/devdocs/akaLinks\.md$
+^installer/PowerToysSetup/WebView2/MicrosoftEdgeWebview2Setup.exe$
 ^src/common/logger/logger\.vcxproj\.filters$
 ^src/common/notifications/BackgroundActivatorDLL/BackgroundActivator\.vcxproj\.filters$
 ^src/common/notifications/BackgroundActivatorDLL/cpp\.hint$
@@ -34,11 +43,9 @@ ignore$
 ^src/modules/imageresizer/dll/ContextMenuHandler\.rgs$
 ^src/modules/imageresizer/dll/ImageResizerExt\.rgs$
 ^src/modules/powerrename/testapp/PowerRenameTest\.vcxproj\.filters$
-^src/modules/powerrename/UWPui/pch\.h$
-^src/modules/powerrename/UWPui/PowerRenameUWPUI\.vcxproj\.filters$
 ^src/modules/previewpane/PreviewPaneUnitTests/HelperFiles/MarkdownWithHTMLImageTag\.txt$
+^src/modules/previewpane/UnitTests-MarkdownPreviewHandler/HelperFiles/MarkdownWithHTMLImageTag.txt$
 ^tools/CleanUp_tool/CleanUp_tool\.vcxproj\.filters$
 ^\.github/
 ^\.github/actions/spell-check/
 ^\.gitmodules$
-(?:^|/)WindowsSettings\.json$

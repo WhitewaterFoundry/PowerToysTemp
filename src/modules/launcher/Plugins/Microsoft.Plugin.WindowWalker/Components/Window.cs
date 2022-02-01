@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation
+// Copyright (c) Microsoft Corporation
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -6,15 +6,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Interop;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using Wox.Plugin.Logger;
 
 namespace Microsoft.Plugin.WindowWalker.Components
 {
@@ -24,20 +19,20 @@ namespace Microsoft.Plugin.WindowWalker.Components
     public class Window
     {
         /// <summary>
-        /// Maximum size of a file name
-        /// </summary>
-        private const int MaximumFileNameLength = 1000;
-
-        /// <summary>
-        /// The list of owners of a window so that we don't have to
-        /// constantly query for the process owning a specific window
-        /// </summary>
-        private static readonly Dictionary<IntPtr, string> _handlesToProcessCache = new Dictionary<IntPtr, string>();
-
-        /// <summary>
         /// The handle to the window
         /// </summary>
         private readonly IntPtr hwnd;
+
+        /// <summary>
+        /// A static cache for the process data of all known windows
+        /// that we don't have to query the data every time
+        /// </summary>
+        private static readonly Dictionary<IntPtr, WindowProcess> _handlesToProcessCache = new Dictionary<IntPtr, WindowProcess>();
+
+        /// <summary>
+        /// An instance of <see cref="WindowProcess"/> that contains the process information for the window
+        /// </summary>
+        private readonly WindowProcess processInfo;
 
         /// <summary>
         /// Gets the title of the window (the string displayed at the top of the window)
@@ -73,86 +68,27 @@ namespace Microsoft.Plugin.WindowWalker.Components
             get { return hwnd; }
         }
 
-        public uint ProcessID { get; set; }
-
         /// <summary>
-        /// Gets returns the name of the process
+        /// Gets the object of with the process information of the window
         /// </summary>
-        public string ProcessName
+        public WindowProcess ProcessInfo
         {
-            get
-            {
-                lock (_handlesToProcessCache)
-                {
-                    if (_handlesToProcessCache.Count > 7000)
-                    {
-                        Debug.Print("Clearing Process Cache because it's size is " + _handlesToProcessCache.Count);
-                        _handlesToProcessCache.Clear();
-                    }
-
-                    if (!_handlesToProcessCache.ContainsKey(Hwnd))
-                    {
-                        var processName = GetProcessNameFromWindowHandle(Hwnd);
-
-                        if (processName.Length != 0)
-                        {
-                            _handlesToProcessCache.Add(
-                                Hwnd,
-                                processName.ToString().Split('\\').Reverse().ToArray()[0]);
-                        }
-                        else
-                        {
-                            _handlesToProcessCache.Add(Hwnd, string.Empty);
-                        }
-                    }
-
-                    if (_handlesToProcessCache[hwnd].ToUpperInvariant() == "APPLICATIONFRAMEHOST.EXE")
-                    {
-                        new Task(() =>
-                        {
-                            NativeMethods.CallBackPtr callbackptr = new NativeMethods.CallBackPtr((IntPtr hwnd, IntPtr lParam) =>
-                            {
-                                var childProcessId = GetProcessIDFromWindowHandle(hwnd);
-                                if (childProcessId != ProcessID)
-                                {
-                                    _handlesToProcessCache[Hwnd] = GetProcessNameFromWindowHandle(hwnd);
-                                    return false;
-                                }
-                                else
-                                {
-                                    return true;
-                                }
-                            });
-                            _ = NativeMethods.EnumChildWindows(Hwnd, callbackptr, 0);
-                        }).Start();
-                    }
-
-                    return _handlesToProcessCache[hwnd];
-                }
-            }
+            get { return processInfo; }
         }
 
         /// <summary>
-        /// Gets returns the name of the class for the window represented
+        /// Gets the name of the class for the window represented
         /// </summary>
         public string ClassName
         {
             get
             {
-                StringBuilder windowClassName = new StringBuilder(300);
-                var numCharactersWritten = NativeMethods.GetClassName(Hwnd, windowClassName, windowClassName.MaxCapacity);
-
-                if (numCharactersWritten == 0)
-                {
-                    return string.Empty;
-                }
-
-                return windowClassName.ToString();
+                return GetWindowClassName(Hwnd);
             }
         }
 
         /// <summary>
-        /// Gets a value indicating whether is the window visible (might return false if it is a hidden IE tab)
+        /// Gets a value indicating whether the window is visible (might return false if it is a hidden IE tab)
         /// </summary>
         public bool Visible
         {
@@ -163,7 +99,19 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
-        /// Gets a value indicating whether determines whether the specified window handle identifies an existing window.
+        /// Gets a value indicating whether the window is cloaked (true) or not (false).
+        /// (A cloaked window is not visible to the user. But the window is still composed by DWM.)
+        /// </summary>
+        public bool IsCloaked
+        {
+            get
+            {
+                return GetWindowCloakState() != WindowCloakState.None;
+            }
+        }
+
+        /// <summary>
+        /// Gets a value indicating whether the specified window handle identifies an existing window.
         /// </summary>
         public bool IsWindow
         {
@@ -174,7 +122,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
-        /// Gets a value indicating whether get a value indicating whether is the window GWL_EX_STYLE is a toolwindow
+        /// Gets a value indicating whether the window is a toolwindow
         /// </summary>
         public bool IsToolWindow
         {
@@ -187,7 +135,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
-        /// Gets a value indicating whether get a value indicating whether the window GWL_EX_STYLE is an appwindow
+        /// Gets a value indicating whether the window is an appwindow
         /// </summary>
         public bool IsAppWindow
         {
@@ -200,7 +148,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
-        /// Gets a value indicating whether get a value indicating whether the window has ITaskList_Deleted property
+        /// Gets a value indicating whether the window has ITaskList_Deleted property
         /// </summary>
         public bool TaskListDeleted
         {
@@ -211,18 +159,18 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
-        /// Gets a value indicating whether determines whether the specified windows is the owner
+        /// Gets a value indicating whether the specified windows is the owner (i.e. doesn't have an owner)
         /// </summary>
         public bool IsOwner
         {
             get
             {
-                return NativeMethods.GetWindow(Hwnd, NativeMethods.GetWindowCmd.GW_OWNER) != null;
+                return NativeMethods.GetWindow(Hwnd, NativeMethods.GetWindowCmd.GW_OWNER) == IntPtr.Zero;
             }
         }
 
         /// <summary>
-        /// Gets a value indicating whether returns true if the window is minimized
+        /// Gets a value indicating whether the window is minimized
         /// </summary>
         public bool Minimized
         {
@@ -241,6 +189,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         {
             // TODO: Add verification as to whether the window handle is valid
             this.hwnd = hwnd;
+            processInfo = CreateWindowProcessInstance(hwnd);
         }
 
         /// <summary>
@@ -253,13 +202,17 @@ namespace Microsoft.Plugin.WindowWalker.Components
             //    to use ShowWindow for switching tabs in IE
             // 2) SetForegroundWindow fails on minimized windows
             // Using Ordinal since this is internal
-            if (ProcessName.ToUpperInvariant().Equals("IEXPLORE.EXE", StringComparison.Ordinal) || !Minimized)
+            if (processInfo.Name.ToUpperInvariant().Equals("IEXPLORE.EXE", StringComparison.Ordinal) || !Minimized)
             {
                 NativeMethods.SetForegroundWindow(Hwnd);
             }
             else
             {
-                NativeMethods.ShowWindow(Hwnd, NativeMethods.ShowWindowCommands.Restore);
+                if (!NativeMethods.ShowWindow(Hwnd, NativeMethods.ShowWindowCommands.Restore))
+                {
+                    // ShowWindow doesn't work if the process is running elevated: fallback to SendMessage
+                    _ = NativeMethods.SendMessage(Hwnd, NativeMethods.WM_SYSCOMMAND, NativeMethods.SC_RESTORE);
+                }
             }
 
             NativeMethods.FlashWindow(Hwnd, true);
@@ -272,7 +225,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         public override string ToString()
         {
             // Using CurrentCulture since this is user facing
-            return Title + " (" + ProcessName.ToUpper(CultureInfo.CurrentCulture) + ")";
+            return Title + " (" + processInfo.Name.ToUpper(CultureInfo.CurrentCulture) + ")";
         }
 
         /// <summary>
@@ -310,36 +263,125 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
-        /// Gets the name of the process using the window handle
+        /// Returns the window cloak state from DWM
+        /// (A cloaked window is not visible to the user. But the window is still composed by DWM.)
         /// </summary>
-        /// <param name="hwnd">The handle to the window</param>
-        /// <returns>A string representing the process name or an empty string if the function fails</returns>
-        private string GetProcessNameFromWindowHandle(IntPtr hwnd)
+        /// <returns>The state (none, app, ...) of the window</returns>
+        public WindowCloakState GetWindowCloakState()
         {
-            uint processId = GetProcessIDFromWindowHandle(hwnd);
-            ProcessID = processId;
-            IntPtr processHandle = NativeMethods.OpenProcess(NativeMethods.ProcessAccessFlags.AllAccess, true, (int)processId);
-            StringBuilder processName = new StringBuilder(MaximumFileNameLength);
+            _ = NativeMethods.DwmGetWindowAttribute(Hwnd, (int)NativeMethods.DwmWindowAttribute.Cloaked, out int isCloakedState, sizeof(uint));
 
-            if (NativeMethods.GetProcessImageFileName(processHandle, processName, MaximumFileNameLength) != 0)
+            switch (isCloakedState)
             {
-                return processName.ToString().Split('\\').Reverse().ToArray()[0];
-            }
-            else
-            {
-                return string.Empty;
+                case (int)NativeMethods.DwmWindowCloakState.None:
+                    return WindowCloakState.None;
+                case (int)NativeMethods.DwmWindowCloakState.CloakedApp:
+                    return WindowCloakState.App;
+                case (int)NativeMethods.DwmWindowCloakState.CloakedShell:
+                    return WindowCloakState.Shell;
+                case (int)NativeMethods.DwmWindowCloakState.CloakedInherited:
+                    return WindowCloakState.Inherited;
+                default:
+                    return WindowCloakState.Unknown;
             }
         }
 
         /// <summary>
-        /// Gets the process ID for the Window handle
+        /// Enum to simplify the cloak state of the window
         /// </summary>
-        /// <param name="hwnd">The handle to the window</param>
-        /// <returns>The process ID</returns>
-        private static uint GetProcessIDFromWindowHandle(IntPtr hwnd)
+        public enum WindowCloakState
         {
-            _ = NativeMethods.GetWindowThreadProcessId(hwnd, out uint processId);
-            return processId;
+            None,
+            App,
+            Shell,
+            Inherited,
+            Unknown,
+        }
+
+        /// <summary>
+        /// Returns the class name of a window.
+        /// </summary>
+        /// <param name="hwnd">Handle to the window.</param>
+        /// <returns>Class name</returns>
+        private static string GetWindowClassName(IntPtr hwnd)
+        {
+            StringBuilder windowClassName = new StringBuilder(300);
+            var numCharactersWritten = NativeMethods.GetClassName(hwnd, windowClassName, windowClassName.MaxCapacity);
+
+            if (numCharactersWritten == 0)
+            {
+                return string.Empty;
+            }
+
+            return windowClassName.ToString();
+        }
+
+        /// <summary>
+        /// Gets an instance of <see cref="WindowProcess"/> form process cache or creates a new one. A new one will be added to the cache.
+        /// </summary>
+        /// <param name="hWindow">The handle to the window</param>
+        /// <returns>A new Instance of type <see cref="WindowProcess"/></returns>
+        private static WindowProcess CreateWindowProcessInstance(IntPtr hWindow)
+        {
+            lock (_handlesToProcessCache)
+            {
+                if (_handlesToProcessCache.Count > 7000)
+                {
+                    Debug.Print("Clearing Process Cache because it's size is " + _handlesToProcessCache.Count);
+                    _handlesToProcessCache.Clear();
+                }
+
+                // Add window's process to cache if missing
+                if (!_handlesToProcessCache.ContainsKey(hWindow))
+                {
+                    // Get process ID and name
+                    var processId = WindowProcess.GetProcessIDFromWindowHandle(hWindow);
+                    var threadId = WindowProcess.GetThreadIDFromWindowHandle(hWindow);
+                    var processName = WindowProcess.GetProcessNameFromProcessID(processId);
+
+                    if (processName.Length != 0)
+                    {
+                        _handlesToProcessCache.Add(hWindow, new WindowProcess(processId, threadId, processName));
+                    }
+                    else
+                    {
+                        // For the dwm process we can not receive the name. This is no problem because the window isn't part of result list.
+                        Log.Debug($"Invalid process {processId} ({processName}) for window handle {hWindow}.", typeof(Window));
+                        _handlesToProcessCache.Add(hWindow, new WindowProcess(0, 0, string.Empty));
+                    }
+                }
+
+                // Correct the process data if the window belongs to a uwp app hosted by 'ApplicationFrameHost.exe'
+                // (This only works if the window isn't minimized. For minimized windows the required child window isn't assigned.)
+                if (_handlesToProcessCache[hWindow].Name.ToUpperInvariant() == "APPLICATIONFRAMEHOST.EXE")
+                {
+                    new Task(() =>
+                    {
+                        NativeMethods.CallBackPtr callbackptr = new NativeMethods.CallBackPtr((IntPtr hwnd, IntPtr lParam) =>
+                        {
+                            // Every uwp app main window has at least three child windows. Only the one we are interested in has a class starting with "Windows.UI.Core." and is assigned to the real app process.
+                            // (The other ones have a class name that begins with the string "ApplicationFrame".)
+                            if (GetWindowClassName(hwnd).StartsWith("Windows.UI.Core.", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var childProcessId = WindowProcess.GetProcessIDFromWindowHandle(hwnd);
+                                var childThreadId = WindowProcess.GetThreadIDFromWindowHandle(hwnd);
+                                var childProcessName = WindowProcess.GetProcessNameFromProcessID(childProcessId);
+
+                                // Update process info in cache
+                                _handlesToProcessCache[hWindow].UpdateProcessInfo(childProcessId, childThreadId, childProcessName);
+                                return false;
+                            }
+                            else
+                            {
+                                return true;
+                            }
+                        });
+                        _ = NativeMethods.EnumChildWindows(hWindow, callbackptr, 0);
+                    }).Start();
+                }
+
+                return _handlesToProcessCache[hWindow];
+            }
         }
     }
 }

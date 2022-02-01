@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\..\..\..\Version.props" />
   <PropertyGroup>
-    <AssemblyTitle>FancyZonesEditor</AssemblyTitle>
+    <AssemblyTitle>PowerToys.FancyZonesEditor</AssemblyTitle>
     <AssemblyDescription>PowerToys FancyZones Editor</AssemblyDescription>
     <Description>PowerToys FancyZones Editor</Description>
     <Copyright>Copyright (C) 2020 Microsoft Corporation</Copyright>
@@ -22,7 +22,7 @@
   
   <PropertyGroup>
     <ProjectGuid>{5CCC8468-DEC8-4D36-99D4-5C891BEBD481}</ProjectGuid>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0-windows10.0.18362.0</TargetFramework>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <IntermediateOutputPath>$(SolutionDir)$(Platform)\$(Configuration)\obj\$(AssemblyName)\</IntermediateOutputPath>
@@ -47,6 +47,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>PowerToys.FancyZonesEditor</AssemblyName>
   </PropertyGroup>
  
   <ItemGroup>
@@ -81,9 +82,9 @@
     <Resource Include="images\FancyZonesEditor.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\common\interop\PowerToysInterop.vcxproj" />
+    <ProjectReference Include="..\..\..\..\common\interop\PowerToys.Interop.vcxproj" />
     <ProjectReference Include="..\..\..\..\common\ManagedCommon\ManagedCommon.csproj" />
-    <ProjectReference Include="..\..\..\..\common\Microsoft.PowerToys.Common.UI\Microsoft.PowerToys.Common.UI.csproj" />
+    <ProjectReference Include="..\..\..\..\common\Common.UI\Common.UI.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">

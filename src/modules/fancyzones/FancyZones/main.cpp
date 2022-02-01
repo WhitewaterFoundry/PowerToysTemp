@@ -12,8 +12,8 @@
 #include <common/utils/resources.h>
 
 #include <FancyZonesLib/FancyZones.h>
-#include <FancyZonesLib/FancyZonesData.h>
 #include <FancyZonesLib/FancyZonesWinHookEventIDs.h>
+#include <FancyZonesLib/ModuleConstants.h>
 
 #include <FancyZonesApp.h>
 
@@ -25,9 +25,8 @@ const std::wstring instanceMutexName = L"Local\\PowerToys_FancyZones_InstanceMut
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ PWSTR lpCmdLine, _In_ int nCmdShow)
 {
     winrt::init_apartment();
-    InitUnhandledExceptionHandler_x64();
-
     LoggerHelpers::init_logger(moduleName, internalPath, LogSettings::fancyZonesLoggerName);
+    InitUnhandledExceptionHandler_x64();    
 
     auto mutex = CreateMutex(nullptr, true, instanceMutexName.c_str());
     if (mutex == nullptr)
@@ -62,7 +61,7 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
     Trace::RegisterProvider();
 
-    FancyZonesApp app(GET_RESOURCE_STRING(IDS_FANCYZONES), NonLocalizable::FancyZonesStr);
+    FancyZonesApp app(GET_RESOURCE_STRING(IDS_FANCYZONES), NonLocalizable::ModuleKey);
     app.Run();
 
     run_message_loop();

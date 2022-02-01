@@ -8,7 +8,10 @@
 #include <vector>
 #include <optional>
 #include <cassert>
+#include <sstream>
 
+#include "../logger/logger.h"
+#include "../utils/winapi_error.h"
 #include "../version/version.h"
 
 namespace registry
@@ -35,7 +38,28 @@ namespace registry
 
         template<class... Ts>
         overloaded(Ts...) -> overloaded<Ts...>;
+
+        inline const wchar_t* getScopeName(HKEY scope)
+        {
+            if (scope == HKEY_LOCAL_MACHINE)
+            {
+                return L"HKLM";
+            }
+            else if (scope == HKEY_CURRENT_USER)
+            {
+                return L"HKCU";
+            }
+            else if (scope == HKEY_CLASSES_ROOT)
+            {
+                return L"HKCR";
+            }
+            else
+            {
+                return L"HK??";
+            }
+        }
     }
+
     struct ValueChange
     {
         using value_t = std::variant<DWORD, std::wstring>;
@@ -51,11 +75,28 @@ namespace registry
         {
         }
 
+        std::wstring toString() const
+        {
+            using namespace detail;
+
+            std::wstring value_str;
+            std::visit(overloaded{ [&](DWORD value) {
+                                      std::wostringstream oss;
+                                      oss << value;
+                                      value_str = oss.str();
+                                  },
+                                   [&](const std::wstring& value) { value_str = value; } },
+                       value);
+
+            return fmt::format(L"{}\\{}\\{}:{}", detail::getScopeName(scope), path, name ? *name : L"Default", value_str);
+        }
+
         bool isApplied() const
         {
             HKEY key{};
-            if (RegOpenKeyExW(scope, path.c_str(), 0, KEY_READ, &key) != ERROR_SUCCESS)
+            if (auto res = RegOpenKeyExW(scope, path.c_str(), 0, KEY_READ, &key); res != ERROR_SUCCESS)
             {
+                Logger::info(L"isApplied of {}: RegOpenKeyExW failed: {}", toString(), get_last_error_or_default(res));
                 return false;
             }
             detail::on_exit closeKey{ [key] { RegCloseKey(key); } };
@@ -65,13 +106,15 @@ namespace registry
             DWORD retrievedType{};
             wchar_t buffer[VALUE_BUFFER_SIZE];
             DWORD valueSize = sizeof(buffer);
-            if (RegQueryValueExW(key,
-                                 name.has_value() ? name->c_str() : nullptr,
-                                 0,
-                                 &retrievedType,
-                                 reinterpret_cast<LPBYTE>(&buffer),
-                                 &valueSize) != ERROR_SUCCESS)
+            if (auto res = RegQueryValueExW(key,
+                                            name.has_value() ? name->c_str() : nullptr,
+                                            0,
+                                            &retrievedType,
+                                            reinterpret_cast<LPBYTE>(&buffer),
+                                            &valueSize);
+                res != ERROR_SUCCESS)
             {
+                Logger::info(L"isApplied of {}: RegQueryValueExW failed: {}", toString(), get_last_error_or_default(res));
                 return false;
             }
 
@@ -94,9 +137,10 @@ namespace registry
         {
             HKEY key{};
 
-            if (RegCreateKeyExW(scope, path.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &key, nullptr) !=
-                ERROR_SUCCESS)
+            if (auto res = RegCreateKeyExW(scope, path.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_WRITE, nullptr, &key, nullptr); res !=
+                                                                                                                                         ERROR_SUCCESS)
             {
+                Logger::error(L"apply of {}: RegCreateKeyExW failed: {}", toString(), get_last_error_or_default(res));
                 return false;
             }
             detail::on_exit closeKey{ [key] { RegCloseKey(key); } };
@@ -106,26 +150,35 @@ namespace registry
             DWORD valueType;
 
             valueToBuffer(value, buffer, valueSize, valueType);
-            return RegSetValueExW(key,
-                                  name.has_value() ? name->c_str() : nullptr,
-                                  0,
-                                  valueType,
-                                  reinterpret_cast<BYTE*>(buffer),
-                                  valueSize) == ERROR_SUCCESS;
+            if (auto res = RegSetValueExW(key,
+                                          name.has_value() ? name->c_str() : nullptr,
+                                          0,
+                                          valueType,
+                                          reinterpret_cast<BYTE*>(buffer),
+                                          valueSize);
+                res != ERROR_SUCCESS)
+            {
+                Logger::error(L"apply of {}: RegSetValueExW failed: {}", toString(), get_last_error_or_default(res));
+                return false;
+            }
+
+            return true;
         }
 
         bool unApply() const
         {
             HKEY key{};
-            if (RegOpenKeyExW(scope, path.c_str(), 0, KEY_ALL_ACCESS, &key) != ERROR_SUCCESS)
+            if (auto res = RegOpenKeyExW(scope, path.c_str(), 0, KEY_ALL_ACCESS, &key); res != ERROR_SUCCESS)
             {
+                Logger::error(L"unApply of {}: RegOpenKeyExW failed: {}", toString(), get_last_error_or_default(res));
                 return false;
             }
             detail::on_exit closeKey{ [key] { RegCloseKey(key); } };
 
             // delete the value itself
-            if (RegDeleteKeyValueW(scope, path.c_str(), name.has_value() ? name->c_str() : nullptr) != ERROR_SUCCESS)
+            if (auto res = RegDeleteKeyValueW(scope, path.c_str(), name.has_value() ? name->c_str() : nullptr); res != ERROR_SUCCESS)
             {
+                Logger::error(L"unApply of {}: RegDeleteKeyValueW failed: {}", toString(), get_last_error_or_default(res));
                 return false;
             }
 
@@ -264,7 +317,7 @@ namespace registry
                                                           std::wstring handlerCategory,
                                                           std::wstring className,
                                                           std::wstring displayName,
-                                                          std::wstring fileType)
+                                                          std::vector<std::wstring> fileTypes)
         {
             const HKEY scope = perUser ? HKEY_CURRENT_USER : HKEY_LOCAL_MACHINE;
 
@@ -282,11 +335,11 @@ namespace registry
             std::wstring assemblyKeyValue;
             if (const auto lastDotPos = className.rfind(L'.'); lastDotPos != std::wstring::npos)
             {
-                assemblyKeyValue = className.substr(lastDotPos + 1);
+                assemblyKeyValue = L"PowerToys." + className.substr(lastDotPos + 1);
             }
             else
             {
-                assemblyKeyValue = className;
+                assemblyKeyValue = L"PowerToys." + className;
             }
 
             assemblyKeyValue += L", Version=";
@@ -296,11 +349,6 @@ namespace registry
             std::wstring versionPath = inprocServerPath;
             versionPath += L'\\';
             versionPath += powertoysVersion;
-
-            std::wstring fileAssociationPath = L"Software\\Classes\\";
-            fileAssociationPath += fileType;
-            fileAssociationPath += L"\\shellex\\";
-            fileAssociationPath += handlerType == PreviewHandlerType::preview ? IPREVIEW_HANDLER_CLSID : ITHUMBNAIL_PROVIDER_CLSID;
 
             using vec_t = std::vector<registry::ValueChange>;
             // TODO: verify that we actually need all of those
@@ -312,8 +360,17 @@ namespace registry
                               { scope, inprocServerPath, L"Class", className },
                               { scope, inprocServerPath, L"ThreadingModel", L"Both" },
                               { scope, versionPath, L"Assembly", assemblyKeyValue },
-                              { scope, versionPath, L"Class", className },
-                              { scope, fileAssociationPath, std::nullopt, handlerClsid } };
+                              { scope, versionPath, L"Class", className } };
+
+            for (const auto& fileType : fileTypes)
+            {
+                std::wstring fileAssociationPath = L"Software\\Classes\\";
+                fileAssociationPath += fileType;
+                fileAssociationPath += L"\\shellex\\";
+                fileAssociationPath += handlerType == PreviewHandlerType::preview ? IPREVIEW_HANDLER_CLSID : ITHUMBNAIL_PROVIDER_CLSID;
+                changes.push_back({ scope, fileAssociationPath, std::nullopt, handlerClsid });
+            }
+
             if (handlerType == PreviewHandlerType::preview)
             {
                 const std::wstring previewHostClsid = L"{6d2b5079-2f0b-48dd-ab7f-97cec514d30b}";

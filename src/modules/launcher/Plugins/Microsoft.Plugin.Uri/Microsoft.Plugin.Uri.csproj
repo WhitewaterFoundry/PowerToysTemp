@@ -1,8 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+<Project Sdk="Microsoft.NET.Sdk">
 <Import Project="..\..\..\..\Version.props" />
   
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0-windows</TargetFramework>
     <ProjectGuid>{03276a39-d4e9-417c-8ffd-200b0ee5e871}</ProjectGuid>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Microsoft.Plugin.Uri</RootNamespace>
@@ -17,7 +17,7 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
-    <OutputPath>..\..\..\..\..\x64\Debug\modules\launcher\Plugins\Microsoft.Plugin.Uri\</OutputPath>
+    <OutputPath>..\..\..\..\..\x64\Debug\modules\launcher\Plugins\Uri\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <DebugType>full</DebugType>
     <PlatformTarget>x64</PlatformTarget>
@@ -30,7 +30,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutputPath>..\..\..\..\..\x64\Release\modules\launcher\Plugins\Microsoft.Plugin.Uri\</OutputPath>
+    <OutputPath>..\..\..\..\..\x64\Release\modules\launcher\Plugins\Uri\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>

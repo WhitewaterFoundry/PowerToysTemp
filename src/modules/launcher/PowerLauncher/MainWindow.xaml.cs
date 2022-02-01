@@ -52,16 +52,33 @@ namespace PowerLauncher
 
         private void SendSettingsTelemetry()
         {
-            Log.Info("Send Run settings telemetry", this.GetType());
-            var plugins = PluginManager.AllPlugins.ToDictionary(x => x.Metadata.Name, x => new PluginModel()
+            try
             {
-                Disabled = x.Metadata.Disabled,
-                ActionKeyword = x.Metadata.ActionKeyword,
-                IsGlobal = x.Metadata.IsGlobal,
-            });
+                Log.Info("Send Run settings telemetry", this.GetType());
+                var plugins = PluginManager.AllPlugins.ToDictionary(x => x.Metadata.Name + " " + x.Metadata.ID, x => new PluginModel()
+                {
+                    ID = x.Metadata.ID,
+                    Name = x.Metadata.Name,
+                    Disabled = x.Metadata.Disabled,
+                    ActionKeyword = x.Metadata.ActionKeyword,
+                    IsGlobal = x.Metadata.IsGlobal,
+                });
 
-            var telemetryEvent = new RunPluginsSettingsEvent(plugins);
-            PowerToysTelemetry.Log.WriteEvent(telemetryEvent);
+                var telemetryEvent = new RunPluginsSettingsEvent(plugins);
+                PowerToysTelemetry.Log.WriteEvent(telemetryEvent);
+            }
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch (Exception ex)
+#pragma warning restore CA1031 // Do not catch general exception types
+            {
+                Log.Exception("Unhandled exception when trying to send PowerToys Run settings telemetry.", ex, GetType());
+            }
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            WindowsInteropHelper.SetPopupStyle(this);
         }
 
         private void CheckForFirstDelete(object sender, ElapsedEventArgs e)
@@ -109,7 +126,7 @@ namespace PowerLauncher
                     string changeType = Marshal.PtrToStringUni(lparam);
                     if (changeType == EnvironmentChangeType)
                     {
-                        Log.Info("Reload environment", typeof(EnvironmentHelper));
+                        Log.Info("Reload environment: Updating environment variables for PT Run's process", typeof(EnvironmentHelper));
                         EnvironmentHelper.UpdateEnvironment();
                         handled = true;
                     }
@@ -125,6 +142,9 @@ namespace PowerLauncher
 
         private void OnSourceInitialized(object sender, EventArgs e)
         {
+            // Initialize protected environment variables before register the WindowMessage
+            EnvironmentHelper.GetProtectedEnvironmentVariables();
+
             _hwndSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             _hwndSource.AddHook(ProcessWindowMessages);
 

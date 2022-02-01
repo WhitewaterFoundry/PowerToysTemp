@@ -615,6 +615,8 @@
                 </Setter>
             </Style>
 
+            <x:Double x:Key="AutoSuggestListMaxHeight">286</x:Double> <!-- This will make sure the AutoSuggestBox flyout does not overlap with the Apply button -->
+            
             <Style TargetType="TextBox" x:Key="AutoSuggestBoxTextBoxStyle">
                 <Setter Property="MinWidth" Value="{ThemeResource TextControlThemeMinWidth}" />
                 <Setter Property="MinHeight" Value="{ThemeResource TextControlThemeMinHeight}" />
@@ -918,9 +920,10 @@
                             Foreground="{ThemeResource TextControlPlaceholderForeground}"
                             Margin="{TemplateBinding BorderThickness}"
                             Padding="{TemplateBinding Padding}"
-                            VerticalAlignment="Center"
                             IsTabStop="False"
-                            Grid.ColumnSpan="4"
+                            Grid.ColumnSpan="2"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
                             Content="{TemplateBinding PlaceholderText}"
                             IsHitTestVisible="False" />
                                 <Button x:Name="DeleteButton"
@@ -929,7 +932,6 @@
                             Style="{StaticResource DeleteButtonStyle}"
                             BorderThickness="{TemplateBinding BorderThickness}"
                             Padding="{ThemeResource HelperButtonThemePadding}"
-                            Margin="0,0,36,0"
                             IsTabStop="False"
                             Grid.Column="1"
                             Visibility="Collapsed"
@@ -966,9 +968,9 @@
                 </Setter>
             </Style>
 
-            <Style TargetType="AutoSuggestBox" BasedOn="{StaticResource CustomAutoSuggestBoxStyle}" />
+            <Style TargetType="AutoSuggestBox" BasedOn="{StaticResource DefaultAutoSuggestBoxStyle}" />
 
-            <Style x:Key="CustomAutoSuggestBoxStyle" TargetType="AutoSuggestBox">
+            <Style x:Key="DefaultAutoSuggestBoxStyle" TargetType="AutoSuggestBox">
                 <Setter Property="VerticalAlignment" Value="Stretch" />
                 <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -981,8 +983,6 @@
                 <Setter Property="FontSize" Value="{ThemeResource ControlContentThemeFontSize}" />
                 <Setter Property="TextBoxStyle" Value="{StaticResource AutoSuggestBoxTextBoxStyle}" />
                 <!--<contract6Present:Setter Property="UseSystemFocusVisuals" Value="{ThemeResource IsApplicationFocusVisualKindReveal}" />-->
-                <Setter Property="UseSystemFocusVisuals" Value="{ThemeResource IsApplicationFocusVisualKindReveal}" />
-                <!--<contract7Present:Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />-->
                 <Setter Property="CornerRadius" Value="{ThemeResource ControlCornerRadius}" />
                 <Setter Property="primitives:AutoSuggestBoxHelper.KeepInteriorCornersSquare" Value="true"/>
                 <Setter Property="Template">
@@ -1026,6 +1026,7 @@
                             Canvas.ZIndex="0"
                             Margin="0"
                             DesiredCandidateWindowAlignment="BottomEdge"
+                            IsSpellCheckEnabled="False"
                             UseSystemFocusVisuals="{TemplateBinding UseSystemFocusVisuals}"
                             contract7Present:CornerRadius="{TemplateBinding CornerRadius}"/>
 
