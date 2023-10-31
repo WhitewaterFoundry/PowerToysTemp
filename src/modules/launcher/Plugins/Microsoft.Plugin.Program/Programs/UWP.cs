@@ -36,6 +36,9 @@ namespace Microsoft.Plugin.Program.Programs
 
         public string Location { get; set; }
 
+        // Localized path based on windows display language
+        public string LocationLocalized { get; set; }
+
         public IList<UWPApplication> Apps { get; private set; }
 
         public PackageVersion Version { get; set; }
@@ -57,6 +60,7 @@ namespace Microsoft.Plugin.Program.Programs
         public void InitializeAppInfo(string installedLocation)
         {
             Location = installedLocation;
+            LocationLocalized = Main.ShellLocalizationHelper.GetLocalizedPath(installedLocation);
             var path = Path.Combine(installedLocation, "AppxManifest.xml");
 
             var namespaces = XmlNamespaces(path);
@@ -127,7 +131,6 @@ namespace Microsoft.Plugin.Program.Programs
             Version = PackageVersion.Unknown;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Intentionally keeping the process alive.")]
         public static UWPApplication[] All()
         {
             var windows10 = new Version(10, 0);
@@ -164,7 +167,6 @@ namespace Microsoft.Plugin.Program.Programs
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Intentionally keeping the process alive.")]
         private static IEnumerable<IPackage> CurrentUserPackages()
         {
             return PackageManagerWrapper.FindPackagesForCurrentUser().Where(p =>
@@ -188,6 +190,7 @@ namespace Microsoft.Plugin.Program.Programs
             return FamilyName;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1309:Use ordinal string comparison", Justification = "Using CurrentCultureIgnoreCase since this is used with FamilyName")]
         public override bool Equals(object obj)
         {
             if (obj is UWP uwp)

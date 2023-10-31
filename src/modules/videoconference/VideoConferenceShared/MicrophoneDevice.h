@@ -10,7 +10,6 @@
 #include <wil/resource.h>
 #include <wil/com.h>
 
-
 #include <string_view>
 
 #include <optional>
@@ -47,19 +46,19 @@ private:
     constexpr static inline std::wstring_view FALLBACK_ID = L"UNKNOWN_ID";
 
 public:
-    MicrophoneDevice(MicrophoneDevice&&) noexcept = default;
+    MicrophoneDevice(MicrophoneDevice&&) noexcept = delete;
+    MicrophoneDevice(const MicrophoneDevice&) noexcept = delete;
     MicrophoneDevice(wil::com_ptr_nothrow<IMMDevice> device, wil::com_ptr_nothrow<IAudioEndpointVolume> endpoint);
     ~MicrophoneDevice();
 
     bool active() const noexcept;
     void set_muted(const bool muted) noexcept;
     bool muted() const noexcept;
-    void toggle_muted() noexcept;
 
     std::wstring_view id() const noexcept;
     std::wstring_view name() const noexcept;
     void set_mute_changed_callback(mute_changed_cb_t callback) noexcept;
 
-    static std::optional<MicrophoneDevice> getDefault();
-    static std::vector<MicrophoneDevice> getAllActive();
+    static std::unique_ptr<MicrophoneDevice> getDefault();
+    static std::vector<std::unique_ptr<MicrophoneDevice>> getAllActive();
 };

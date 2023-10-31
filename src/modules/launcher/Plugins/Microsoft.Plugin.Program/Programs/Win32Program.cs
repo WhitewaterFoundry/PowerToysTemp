@@ -15,6 +15,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Microsoft.Plugin.Program.Logger;
+using Microsoft.Plugin.Program.Utils;
 using Microsoft.Win32;
 using Wox.Infrastructure;
 using Wox.Infrastructure.FileSystemHelper;
@@ -36,19 +37,35 @@ namespace Microsoft.Plugin.Program.Programs
 
         public string Name { get; set; }
 
+        // Localized name based on windows display language
+        public string NameLocalized { get; set; } = string.Empty;
+
         public string UniqueIdentifier { get; set; }
 
         public string IcoPath { get; set; }
 
+        public string Description { get; set; } = string.Empty;
+
+        // Path of app executable or lnk target executable
         public string FullPath { get; set; }
 
-        public string LnkResolvedPath { get; set; }
+        // Localized path based on windows display language
+        public string FullPathLocalized { get; set; } = string.Empty;
 
         public string ParentDirectory { get; set; }
 
         public string ExecutableName { get; set; }
 
-        public string Description { get; set; } = string.Empty;
+        // Localized executable name based on windows display language
+        public string ExecutableNameLocalized { get; set; } = string.Empty;
+
+        // Path to the lnk file on LnkProgram
+        public string LnkFilePath { get; set; }
+
+        public string LnkResolvedExecutableName { get; set; }
+
+        // Localized path based on windows display language
+        public string LnkResolvedExecutableNameLocalized { get; set; } = string.Empty;
 
         public bool Valid { get; set; }
 
@@ -74,7 +91,7 @@ namespace Microsoft.Plugin.Program.Programs
         private const string ShortcutExtension = "lnk";
         private const string ApplicationReferenceExtension = "appref-ms";
         private const string InternetShortcutExtension = "url";
-        private static readonly HashSet<string> ExecutableApplicationExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "exe", "bat", "bin", "com", "msc", "msi", "cmd", "ps1", "job", "msp", "mst", "sct", "ws", "wsh", "wsf" };
+        private static readonly HashSet<string> ExecutableApplicationExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "exe", "bat", "bin", "com", "cpl", "msc", "msi", "cmd", "ps1", "job", "msp", "mst", "sct", "ws", "wsh", "wsf" };
 
         private const string ProxyWebApp = "_proxy.exe";
         private const string AppIdArgument = "--app-id";
@@ -95,9 +112,13 @@ namespace Microsoft.Plugin.Program.Programs
         private int Score(string query)
         {
             var nameMatch = StringMatcher.FuzzySearch(query, Name);
+            var locNameMatch = StringMatcher.FuzzySearch(query, NameLocalized);
             var descriptionMatch = StringMatcher.FuzzySearch(query, Description);
             var executableNameMatch = StringMatcher.FuzzySearch(query, ExecutableName);
-            var score = new[] { nameMatch.Score, descriptionMatch.Score / 2, executableNameMatch.Score }.Max();
+            var locExecutableNameMatch = StringMatcher.FuzzySearch(query, ExecutableNameLocalized);
+            var lnkResolvedExecutableNameMatch = StringMatcher.FuzzySearch(query, LnkResolvedExecutableName);
+            var locLnkResolvedExecutableNameMatch = StringMatcher.FuzzySearch(query, LnkResolvedExecutableNameLocalized);
+            var score = new[] { nameMatch.Score, locNameMatch.Score, descriptionMatch.Score / 2, executableNameMatch.Score, locExecutableNameMatch.Score, lnkResolvedExecutableNameMatch.Score, locLnkResolvedExecutableNameMatch.Score }.Max();
             return score;
         }
 
@@ -218,7 +239,7 @@ namespace Microsoft.Plugin.Program.Programs
             var result = new Result
             {
                 // To set the title for the result to always be the name of the application
-                Title = Name,
+                Title = !string.IsNullOrEmpty(NameLocalized) ? NameLocalized : Name,
                 SubTitle = GetSubtitle(),
                 IcoPath = IcoPath,
                 Score = score,
@@ -234,17 +255,23 @@ namespace Microsoft.Plugin.Program.Programs
                 },
             };
 
-            result.TitleHighlightData = StringMatcher.FuzzySearch(query, Name).MatchData;
+            // Adjust title of RunCommand result
+            if (AppType == ApplicationType.RunCommand)
+            {
+                result.Title = ExecutableName;
+            }
+
+            result.TitleHighlightData = StringMatcher.FuzzySearch(query, result.Title).MatchData;
 
             // Using CurrentCulture since this is user facing
             var toolTipTitle = string.Format(CultureInfo.CurrentCulture, "{0}: {1}", Properties.Resources.powertoys_run_plugin_program_file_name, result.Title);
-            var toolTipText = string.Format(CultureInfo.CurrentCulture, "{0}: {1}", Properties.Resources.powertoys_run_plugin_program_file_path, FullPath);
+            string filePath = !string.IsNullOrEmpty(FullPathLocalized) ? FullPathLocalized : FullPath;
+            var toolTipText = string.Format(CultureInfo.CurrentCulture, "{0}: {1}", Properties.Resources.powertoys_run_plugin_program_file_path, filePath);
             result.ToolTipData = new ToolTipData(toolTipTitle, toolTipText);
 
             return result;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Intentionally keeping the process alive.")]
         public List<ContextMenuResult> ContextMenus(string queryArguments, IPublicAPI api)
         {
             if (api == null)
@@ -266,7 +293,24 @@ namespace Microsoft.Plugin.Program.Programs
                     AcceleratorModifiers = ModifierKeys.Control | ModifierKeys.Shift,
                     Action = _ =>
                     {
-                        var info = GetProcessStartInfo(queryArguments, true);
+                        var info = GetProcessStartInfo(queryArguments, RunAsType.Administrator);
+                        Task.Run(() => Main.StartProcess(Process.Start, info));
+
+                        return true;
+                    },
+                });
+
+                contextMenus.Add(new ContextMenuResult
+                {
+                    PluginName = Assembly.GetExecutingAssembly().GetName().Name,
+                    Title = Properties.Resources.wox_plugin_program_run_as_user,
+                    Glyph = "\xE7EE",
+                    FontFamily = "Segoe MDL2 Assets",
+                    AcceleratorKey = Key.U,
+                    AcceleratorModifiers = ModifierKeys.Control | ModifierKeys.Shift,
+                    Action = _ =>
+                    {
+                        var info = GetProcessStartInfo(queryArguments, RunAsType.OtherUser);
                         Task.Run(() => Main.StartProcess(Process.Start, info));
 
                         return true;
@@ -317,16 +361,23 @@ namespace Microsoft.Plugin.Program.Programs
             return contextMenus;
         }
 
-        private ProcessStartInfo GetProcessStartInfo(string programArguments, bool runAsAdmin = false)
+        private ProcessStartInfo GetProcessStartInfo(string programArguments, RunAsType runAs = RunAsType.None)
         {
             return new ProcessStartInfo
             {
-                FileName = LnkResolvedPath ?? FullPath,
+                FileName = LnkFilePath ?? FullPath,
                 WorkingDirectory = ParentDirectory,
                 UseShellExecute = true,
                 Arguments = programArguments,
-                Verb = runAsAdmin ? "runas" : string.Empty,
+                Verb = runAs == RunAsType.Administrator ? "runAs" : runAs == RunAsType.OtherUser ? "runAsUser" : string.Empty,
             };
+        }
+
+        private enum RunAsType
+        {
+            None,
+            Administrator,
+            OtherUser,
         }
 
         public override string ToString()
@@ -334,8 +385,6 @@ namespace Microsoft.Plugin.Program.Programs
             return ExecutableName;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Any error in CreateWin32Program should not prevent other programs from loading.")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "User facing path needs to be shown in lowercase.")]
         private static Win32Program CreateWin32Program(string path)
         {
             try
@@ -347,13 +396,18 @@ namespace Microsoft.Plugin.Program.Programs
                     IcoPath = path,
 
                     // Using InvariantCulture since this is user facing
-                    FullPath = path.ToLowerInvariant(),
+                    FullPath = path,
                     UniqueIdentifier = path,
                     ParentDirectory = Directory.GetParent(path).FullName,
                     Description = string.Empty,
                     Valid = true,
                     Enabled = true,
                     AppType = ApplicationType.Win32Application,
+
+                    // Localized name, path and executable based on windows display language
+                    NameLocalized = Main.ShellLocalizationHelper.GetLocalizedName(path),
+                    FullPathLocalized = Main.ShellLocalizationHelper.GetLocalizedPath(path),
+                    ExecutableNameLocalized = Path.GetFileName(Main.ShellLocalizationHelper.GetLocalizedPath(path)),
                 };
             }
             catch (Exception e) when (e is SecurityException || e is UnauthorizedAccessException)
@@ -370,11 +424,9 @@ namespace Microsoft.Plugin.Program.Programs
             }
         }
 
-        private static readonly Regex InternetShortcutURLPrefixes = new Regex(@"^steam:\/\/(rungameid|run)\/|^com\.epicgames\.launcher:\/\/apps\/", RegexOptions.Compiled);
+        private static readonly Regex InternetShortcutURLPrefixes = new Regex(@"^steam:\/\/(rungameid|run|open)\/|^com\.epicgames\.launcher:\/\/apps\/", RegexOptions.Compiled);
 
         // This function filters Internet Shortcut programs
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Any error in InternetShortcutProgram should not prevent other programs from loading.")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "User facing path needs to be shown in lowercase.")]
         private static Win32Program InternetShortcutProgram(string path)
         {
             try
@@ -431,7 +483,7 @@ namespace Microsoft.Plugin.Program.Programs
                         Name = Path.GetFileNameWithoutExtension(path),
                         ExecutableName = Path.GetFileName(path),
                         IcoPath = iconPath,
-                        FullPath = urlPath.ToLowerInvariant(),
+                        FullPath = urlPath,
                         UniqueIdentifier = path,
                         ParentDirectory = Directory.GetParent(path).FullName,
                         Valid = true,
@@ -454,8 +506,6 @@ namespace Microsoft.Plugin.Program.Programs
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Unsure of what exceptions are caught here while enabling static analysis")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "User facing path needs to be shown in lowercase.")]
         private static Win32Program LnkProgram(string path)
         {
             try
@@ -463,12 +513,21 @@ namespace Microsoft.Plugin.Program.Programs
                 var program = CreateWin32Program(path);
                 string target = ShellLinkHelper.RetrieveTargetPath(path);
 
-                if (!string.IsNullOrEmpty(target) && (File.Exists(target) || Directory.Exists(target)))
+                if (!string.IsNullOrEmpty(target))
                 {
-                    program.LnkResolvedPath = program.FullPath;
+                    if (!(File.Exists(target) || Directory.Exists(target)))
+                    {
+                        // If the link points nowhere, consider it invalid.
+                        return InvalidProgram;
+                    }
+
+                    program.LnkFilePath = program.FullPath;
+                    program.LnkResolvedExecutableName = Path.GetFileName(target);
+                    program.LnkResolvedExecutableNameLocalized = Path.GetFileName(Main.ShellLocalizationHelper.GetLocalizedPath(target));
 
                     // Using CurrentCulture since this is user facing
-                    program.FullPath = Path.GetFullPath(target).ToLowerInvariant();
+                    program.FullPath = Path.GetFullPath(target);
+                    program.FullPathLocalized = Main.ShellLocalizationHelper.GetLocalizedPath(target);
 
                     program.Arguments = ShellLinkHelper.Arguments;
 
@@ -494,6 +553,11 @@ namespace Microsoft.Plugin.Program.Programs
 
                 return program;
             }
+            catch (System.IO.FileLoadException e)
+            {
+                ProgramLogger.Warn($"Couldn't load the link file at {path}. This might be caused by a new link being created and locked by the OS.", e, MethodBase.GetCurrentMethod().DeclaringType, path);
+                return InvalidProgram;
+            }
 
             // Only do a catch all in production. This is so make developer aware of any unhandled exception and add the exception handling in.
             // Error caused likely due to trying to get the description of the program
@@ -505,7 +569,6 @@ namespace Microsoft.Plugin.Program.Programs
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Any error in ExeProgram should not prevent other programs from loading.")]
         private static Win32Program ExeProgram(string path)
         {
             try
@@ -613,7 +676,6 @@ namespace Microsoft.Plugin.Program.Programs
                 : null;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Minimise the effect of error on other programs")]
         private static IEnumerable<string> ProgramPaths(string directory, IList<string> suffixes, bool recursiveSearch = true)
         {
             if (!Directory.Exists(directory))
@@ -672,7 +734,7 @@ namespace Microsoft.Plugin.Program.Programs
 
                     foreach (var childDirectory in Directory.EnumerateDirectories(currentDirectory, "*", new EnumerationOptions()
                     {
-                        // https://docs.microsoft.com/en-us/dotnet/api/system.io.enumerationoptions?view=net-6.0
+                        // https://learn.microsoft.com/dotnet/api/system.io.enumerationoptions?view=net-6.0
                         // Exclude directories with the Reparse Point file attribute, to avoid loops due to symbolic links / directory junction / mount points.
                         AttributesToSkip = FileAttributes.Hidden | FileAttributes.System | FileAttributes.ReparsePoint,
                         RecurseSubdirectories = false,
@@ -695,7 +757,6 @@ namespace Microsoft.Plugin.Program.Programs
             return files;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "User facing path needs to be shown in lowercase.")]
         private static string Extension(string path)
         {
             // Using InvariantCulture since this is user facing
@@ -758,9 +819,9 @@ namespace Microsoft.Plugin.Program.Programs
             return IndexPath(suffixes, indexLocation);
         }
 
-        private static IEnumerable<string> RegisteryAppProgramPaths(IList<string> suffixes)
+        private static IEnumerable<string> RegistryAppProgramPaths(IList<string> suffixes)
         {
-            // https://msdn.microsoft.com/en-us/library/windows/desktop/ee872121
+            // https://msdn.microsoft.com/library/windows/desktop/ee872121
             const string appPaths = @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths";
             var paths = new List<string>();
             using (var root = Registry.LocalMachine.OpenSubKey(appPaths))
@@ -788,9 +849,9 @@ namespace Microsoft.Plugin.Program.Programs
         private static IEnumerable<string> GetPathsFromRegistry(RegistryKey root)
             => root
                 .GetSubKeyNames()
-                .Select(x => GetPathFromRegisterySubkey(root, x));
+                .Select(x => GetPathFromRegistrySubkey(root, x));
 
-        private static string GetPathFromRegisterySubkey(RegistryKey root, string subkey)
+        private static string GetPathFromRegistrySubkey(RegistryKey root, string subkey)
         {
             var path = string.Empty;
             try
@@ -879,14 +940,49 @@ namespace Microsoft.Plugin.Program.Programs
             }
         }
 
+        private static bool TryGetIcoPathForRunCommandProgram(Win32Program program, out string icoPath)
+        {
+            if (program.AppType != ApplicationType.RunCommand)
+            {
+                icoPath = null;
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(program.FullPath))
+            {
+                icoPath = null;
+                return false;
+            }
+
+            // https://msdn.microsoft.com/library/windows/desktop/ee872121
+            try
+            {
+                var redirectionPath = ReparsePoint.GetTarget(program.FullPath);
+                icoPath = ExpandEnvironmentVariables(redirectionPath);
+                return true;
+            }
+            catch (IOException e)
+            {
+                ProgramLogger.Warn($"|Error whilst retrieving the redirection path from app execution alias {program.FullPath}", e, MethodBase.GetCurrentMethod().DeclaringType, program.FullPath);
+            }
+
+            icoPath = null;
+            return false;
+        }
+
         private static Win32Program GetRunCommandProgramFromPath(string path)
         {
             var program = GetProgramFromPath(path);
             program.AppType = ApplicationType.RunCommand;
+
+            if (TryGetIcoPathForRunCommandProgram(program, out var icoPath))
+            {
+                program.IcoPath = icoPath;
+            }
+
             return program;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Keeping the process alive but logging the exception")]
         public static IList<Win32Program> All(ProgramPluginSettings settings)
         {
             if (settings == null)
@@ -909,13 +1005,13 @@ namespace Microsoft.Plugin.Program.Programs
                     (true, () => CustomProgramPaths(settings.ProgramSources, settings.ProgramSuffixes)),
                     (settings.EnableStartMenuSource, () => StartMenuProgramPaths(settings.ProgramSuffixes)),
                     (settings.EnableDesktopSource, () => DesktopProgramPaths(settings.ProgramSuffixes)),
-                    (settings.EnableRegistrySource, () => RegisteryAppProgramPaths(settings.ProgramSuffixes)),
+                    (settings.EnableRegistrySource, () => RegistryAppProgramPaths(settings.ProgramSuffixes)),
                 };
 
                 // Run commands are always set as AppType "RunCommand"
                 var runCommandSources = new (bool IsEnabled, Func<IEnumerable<string>> GetPaths)[]
                 {
-                    (settings.EnablePathEnvironmentVariableSource, () => PathEnvironmentProgramPaths(settings.ProgramSuffixes)),
+                    (settings.EnablePathEnvironmentVariableSource, () => PathEnvironmentProgramPaths(settings.RunCommandSuffixes)),
                 };
 
                 var disabledProgramsList = settings.DisabledProgramSources;

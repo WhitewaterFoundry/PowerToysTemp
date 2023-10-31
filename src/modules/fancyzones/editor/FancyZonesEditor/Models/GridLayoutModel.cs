@@ -119,6 +119,16 @@ namespace FancyZonesEditor.Models
             }
         }
 
+        public int SpacingMinimum
+        {
+            get { return -10; }
+        }
+
+        public int SpacingMaximum
+        {
+            get { return 1000; }
+        }
+
         private int _spacing = LayoutSettings.DefaultSpacing;
 
         public GridLayoutModel()
@@ -270,6 +280,8 @@ namespace FancyZonesEditor.Models
 
         public void RestoreTo(GridLayoutModel layout)
         {
+            base.RestoreTo(layout);
+
             int rows = Rows;
             int cols = Columns;
 
@@ -305,7 +317,6 @@ namespace FancyZonesEditor.Models
 
             layout.ShowSpacing = ShowSpacing;
             layout.Spacing = Spacing;
-            layout.SensitivityRadius = SensitivityRadius;
 
             layout.FirePropertyChanged();
         }

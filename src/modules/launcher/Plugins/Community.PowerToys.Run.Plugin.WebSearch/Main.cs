@@ -36,6 +36,8 @@ namespace Community.PowerToys.Run.Plugin.WebSearch
 
         public string Description => Properties.Resources.plugin_description;
 
+        public static string PluginID => "9F1B49201C3F4BF781CAAD5CD88EA4DC";
+
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
             new PluginAdditionalOption()
@@ -60,10 +62,10 @@ namespace Community.PowerToys.Run.Plugin.WebSearch
 
             var results = new List<Result>();
 
-            // empty non-global query:
-            if (!AreResultsGlobal() && query.ActionKeyword == query.RawQuery)
+            // empty query
+            if (string.IsNullOrEmpty(query.Search))
             {
-                string arguments = "\"? \"";
+                string arguments = "? ";
                 results.Add(new Result
                 {
                     Title = Properties.Resources.plugin_description.Remove(Description.Length - 1, 1),
@@ -73,7 +75,7 @@ namespace Community.PowerToys.Run.Plugin.WebSearch
                     ProgramArguments = arguments,
                     Action = action =>
                     {
-                        if (!Helper.OpenInShell(BrowserInfo.Path ?? BrowserInfo.MSEdgePath, arguments))
+                        if (!Helper.OpenCommandInShell(BrowserInfo.Path, BrowserInfo.ArgumentsPattern, arguments))
                         {
                             onPluginError();
                             return false;
@@ -84,8 +86,7 @@ namespace Community.PowerToys.Run.Plugin.WebSearch
                 });
                 return results;
             }
-
-            if (!string.IsNullOrEmpty(query.Search))
+            else
             {
                 string searchTerm = query.Search;
 
@@ -105,37 +106,19 @@ namespace Community.PowerToys.Run.Plugin.WebSearch
                     IcoPath = _iconPath,
                 };
 
-                if (BrowserInfo.SupportsWebSearchByCmdLineArgument)
+                string arguments = $"? {searchTerm}";
+
+                result.ProgramArguments = arguments;
+                result.Action = action =>
                 {
-                    string arguments = $"\"? {searchTerm}\"";
-
-                    result.ProgramArguments = arguments;
-                    result.Action = action =>
+                    if (!Helper.OpenCommandInShell(BrowserInfo.Path, BrowserInfo.ArgumentsPattern, arguments))
                     {
-                        if (!Helper.OpenInShell(BrowserInfo.Path ?? BrowserInfo.MSEdgePath, arguments))
-                        {
-                            onPluginError();
-                            return false;
-                        }
+                        onPluginError();
+                        return false;
+                    }
 
-                        return true;
-                    };
-                }
-                else
-                {
-                    string url = string.Format(CultureInfo.InvariantCulture, BrowserInfo.SearchEngineUrl, searchTerm);
-
-                    result.Action = action =>
-                    {
-                        if (!Helper.OpenInShell(url))
-                        {
-                            onPluginError();
-                            return false;
-                        }
-
-                        return true;
-                    };
-                }
+                    return true;
+                };
 
                 results.Add(result);
             }
@@ -152,7 +135,7 @@ namespace Community.PowerToys.Run.Plugin.WebSearch
             {
                 if (input.EndsWith(":", StringComparison.OrdinalIgnoreCase)
                     && !input.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                    && !input.Contains("/", StringComparison.OrdinalIgnoreCase)
+                    && !input.Contains('/', StringComparison.OrdinalIgnoreCase)
                     && !input.All(char.IsDigit)
                     && System.Text.RegularExpressions.Regex.IsMatch(input, @"^([a-z][a-z0-9+\-.]*):"))
                 {

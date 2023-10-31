@@ -2,10 +2,7 @@
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections.Generic;
 using System.IO.Abstractions;
-using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace Wox.Plugin
@@ -35,6 +32,10 @@ namespace Wox.Plugin
 
         public bool Disabled { get; set; }
 
+        // This property is used in PT Run only to decide whether to updated the Disabled property or not.
+        [JsonIgnore]
+        public bool IsEnabledPolicyConfigured { get; set; }
+
         [JsonInclude]
         public string ExecuteFilePath { get; private set; }
 
@@ -55,6 +56,8 @@ namespace Wox.Plugin
         }
 
         public string ActionKeyword { get; set; }
+
+        public int WeightBoost { get; set; }
 
         public bool IsGlobal { get; set; }
 

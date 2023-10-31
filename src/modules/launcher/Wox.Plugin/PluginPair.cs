@@ -63,22 +63,29 @@ namespace Wox.Plugin
                 return;
             }
 
-            if (Metadata.Disabled && !setting.Disabled)
+            // If the enabled state is policy managed then we skip the update of the disabled state as it must be a manual settings.json manipulation.
+            if (!Metadata.IsEnabledPolicyConfigured)
             {
-                Metadata.Disabled = false;
-                InitializePlugin(api);
-                if (!IsPluginInitialized)
+                if (Metadata.Disabled && !setting.Disabled)
                 {
-                    var title = string.Format(CultureInfo.CurrentCulture, Resources.FailedToLoadPluginTitle, Metadata.Name);
-                    api.ShowMsg(title, Resources.FailedToLoadPluginDescription, string.Empty, false);
+                    Metadata.Disabled = false;
+                    InitializePlugin(api);
+
+                    if (!IsPluginInitialized)
+                    {
+                        string description = $"{Resources.FailedToLoadPluginDescription} {Metadata.Name}\n\n{Resources.FailedToLoadPluginDescriptionPartTwo}";
+                        api.ShowMsg(Resources.FailedToLoadPluginTitle, description, string.Empty, false);
+                    }
                 }
-            }
-            else
-            {
-                Metadata.Disabled = setting.Disabled;
+                else
+                {
+                    Metadata.Disabled = setting.Disabled;
+                }
             }
 
             Metadata.ActionKeyword = setting.ActionKeyword;
+            Metadata.WeightBoost = setting.WeightBoost;
+
             Metadata.IsGlobal = setting.IsGlobal;
 
             (Plugin as ISettingProvider)?.UpdateSettings(setting);
@@ -136,9 +143,7 @@ namespace Wox.Plugin
             {
                 _assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(Metadata.ExecuteFilePath);
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception e)
-#pragma warning restore CA1031 // Do not catch general exception types
             {
                 Log.Exception($"Couldn't load assembly for {Metadata.Name} in {Metadata.ExecuteFilePath}", e, MethodBase.GetCurrentMethod().DeclaringType);
                 return false;
@@ -166,13 +171,24 @@ namespace Wox.Plugin
                 return false;
             }
 
+            // Validate plugin ID to prevent bypassing the GPO by changing the ID in the plugin.json file.
+            string pluginID = (string)type.GetProperty("PluginID", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+            if (pluginID == null)
+            {
+                Log.Error($"Can't validate plugin ID of plugin <{Metadata.Name}> in {Metadata.ExecuteFilePath}: The static property <Main.PluginID> was not found.", MethodBase.GetCurrentMethod().DeclaringType);
+                return false;
+            }
+            else if (pluginID != Metadata.ID)
+            {
+                Log.Error($"Wrong plugin ID found in plugin.json of plugin <{Metadata.Name}>. ('{Metadata.ID}' != '{pluginID}')", MethodBase.GetCurrentMethod().DeclaringType);
+                return false;
+            }
+
             try
             {
                 Plugin = (IPlugin)Activator.CreateInstance(type);
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception e)
-#pragma warning restore CA1031 // Do not catch general exception types
             {
                 Log.Exception($"Can't create instance for <{Metadata.Name}> in {Metadata.ExecuteFilePath}", e, MethodBase.GetCurrentMethod().DeclaringType);
                 return false;
@@ -197,9 +213,7 @@ namespace Wox.Plugin
                     API = api,
                 });
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception e)
-#pragma warning restore CA1031 // Do not catch general exception types
             {
                 Log.Exception($"Fail to Init plugin: {Metadata.Name}", e, GetType());
                 return false;

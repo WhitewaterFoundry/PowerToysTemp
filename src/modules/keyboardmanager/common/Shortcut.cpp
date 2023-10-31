@@ -194,7 +194,7 @@ DWORD Shortcut::GetShiftKey() const
 }
 
 // Function to check if the input key matches the win key expected in the shortcut
-bool Shortcut::CheckWinKey(const DWORD& input) const
+bool Shortcut::CheckWinKey(const DWORD input) const
 {
     if (winKey == ModifierKey::Disabled)
     {
@@ -216,7 +216,7 @@ bool Shortcut::CheckWinKey(const DWORD& input) const
 }
 
 // Function to check if the input key matches the ctrl key expected in the shortcut
-bool Shortcut::CheckCtrlKey(const DWORD& input) const
+bool Shortcut::CheckCtrlKey(const DWORD input) const
 {
     if (ctrlKey == ModifierKey::Disabled)
     {
@@ -238,7 +238,7 @@ bool Shortcut::CheckCtrlKey(const DWORD& input) const
 }
 
 // Function to check if the input key matches the alt key expected in the shortcut
-bool Shortcut::CheckAltKey(const DWORD& input) const
+bool Shortcut::CheckAltKey(const DWORD input) const
 {
     if (altKey == ModifierKey::Disabled)
     {
@@ -260,7 +260,7 @@ bool Shortcut::CheckAltKey(const DWORD& input) const
 }
 
 // Function to check if the input key matches the shift key expected in the shortcut
-bool Shortcut::CheckShiftKey(const DWORD& input) const
+bool Shortcut::CheckShiftKey(const DWORD input) const
 {
     if (shiftKey == ModifierKey::Disabled)
     {
@@ -282,7 +282,7 @@ bool Shortcut::CheckShiftKey(const DWORD& input) const
 }
 
 // Function to set a key in the shortcut based on the passed key code argument. Returns false if it is already set to the same value. This can be used to avoid UI refreshing
-bool Shortcut::SetKey(const DWORD& input)
+bool Shortcut::SetKey(const DWORD input)
 {
     // Since there isn't a key for a common Win key we use the key code defined by us
     if (input == CommonSharedConstants::VK_WIN_BOTH)
@@ -394,7 +394,7 @@ bool Shortcut::SetKey(const DWORD& input)
 }
 
 // Function to reset the state of a shortcut key based on the passed key code argument. Since there is no VK_WIN code, use the second argument for setting common win key.
-void Shortcut::ResetKey(const DWORD& input)
+void Shortcut::ResetKey(const DWORD input)
 {
     // Since there isn't a key for a common Win key this is handled with a separate argument.
     if (input == CommonSharedConstants::VK_WIN_BOTH || input == VK_LWIN || input == VK_RWIN)
@@ -415,7 +415,7 @@ void Shortcut::ResetKey(const DWORD& input)
     }
     else
     {
-        actionKey = NULL;
+        actionKey = {};
     }
 }
 
@@ -425,23 +425,23 @@ winrt::hstring Shortcut::ToHstringVK() const
     winrt::hstring output;
     if (winKey != ModifierKey::Disabled)
     {
-        output = output + winrt::to_hstring((unsigned int)GetWinKey(ModifierKey::Both)) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetWinKey(ModifierKey::Both))) + winrt::to_hstring(L";");
     }
     if (ctrlKey != ModifierKey::Disabled)
     {
-        output = output + winrt::to_hstring((unsigned int)GetCtrlKey()) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetCtrlKey())) + winrt::to_hstring(L";");
     }
     if (altKey != ModifierKey::Disabled)
     {
-        output = output + winrt::to_hstring((unsigned int)GetAltKey()) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetAltKey())) + winrt::to_hstring(L";");
     }
     if (shiftKey != ModifierKey::Disabled)
     {
-        output = output + winrt::to_hstring((unsigned int)GetShiftKey()) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetShiftKey())) + winrt::to_hstring(L";");
     }
     if (actionKey != NULL)
     {
-        output = output + winrt::to_hstring((unsigned int)GetActionKey()) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetActionKey())) + winrt::to_hstring(L";");
     }
 
     if (!output.empty())
@@ -592,13 +592,13 @@ bool Shortcut::CheckModifiersKeyboardState(KeyboardManagerInput::InputInterface&
 }
 
 // Helper method for checking if a key is in a range for cleaner code
-bool in_range(DWORD key, DWORD a, DWORD b)
+constexpr bool in_range(DWORD key, DWORD a, DWORD b)
 {
     return (key >= a && key <= b);
 }
 
 // Helper method for checking if a key is equal to a value for cleaner code
-bool equals(DWORD key, DWORD a)
+constexpr bool equals(DWORD key, DWORD a)
 {
     return (key == a);
 }
@@ -617,7 +617,7 @@ bool IgnoreKeyCode(DWORD key)
         return true;
     }
 
-    // As per docs: https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+    // As per docs: https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes
     // Undefined keys
     bool isUndefined = equals(key, 0x07) || in_range(key, 0x0E, 0x0F) || in_range(key, 0x3A, 0x40);
 
@@ -783,7 +783,7 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
                 }
             }
             // If any other key is pressed check if it is the action key
-            else if (keyVal != actionKey)
+            else if (keyVal != static_cast<int>(actionKey))
             {
                 return false;
             }

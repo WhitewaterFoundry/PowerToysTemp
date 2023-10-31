@@ -26,7 +26,8 @@ struct Settings
     // The values specified here are the defaults.
     bool shiftDrag = true;
     bool mouseSwitch = false;
-    bool displayChange_moveWindows = false;
+    bool mouseMiddleClickSpanningMultipleZones = false;
+    bool displayOrWorkAreaChange_moveWindows = true;
     bool zoneSetChange_flashZones = false;
     bool zoneSetChange_moveWindows = false;
     bool overrideSnapHotkeys = false;
@@ -45,6 +46,7 @@ struct Settings
     bool showZoneNumber = true;
     bool allowSnapPopupWindows = false;
     bool allowSnapChildWindows = false;
+    bool disableRoundCorners = false;
     std::wstring zoneColor = L"#AACDFF";
     std::wstring zoneBorderColor = L"#FFFFFF";
     std::wstring zoneHighlightColor = L"#008CFF";
@@ -73,9 +75,17 @@ public:
         std::wstring saveFolderPath = PTSettingsHelper::get_module_save_folder_location(NonLocalizable::ModuleKey);
 #if defined(UNIT_TESTS)
         return saveFolderPath + L"\\test-settings.json";
-#endif
+#else
         return saveFolderPath + L"\\settings.json";
+#endif
     }
+
+#if defined(UNIT_TESTS)
+    inline void SetSettings(const Settings& settings)
+    {
+        m_settings = settings;
+    }
+#endif
 
     void AddObserver(SettingsObserver& observer);
     void RemoveObserver(SettingsObserver& observer);

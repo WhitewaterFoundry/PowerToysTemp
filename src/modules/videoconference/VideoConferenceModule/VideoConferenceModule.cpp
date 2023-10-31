@@ -8,6 +8,7 @@
 #include <shellapi.h>
 
 #include <filesystem>
+#include <unordered_set>
 
 #include <common/debug_control.h>
 #include <common/SettingsAPI/settings_helpers.h>
@@ -25,6 +26,7 @@ VideoConferenceModule* instance = nullptr;
 
 VideoConferenceSettings VideoConferenceModule::settings;
 Toolbar VideoConferenceModule::toolbar;
+bool VideoConferenceModule::pushToTalkPressed = false;
 
 HHOOK VideoConferenceModule::hook_handle;
 
@@ -48,23 +50,25 @@ bool VideoConferenceModule::isHotkeyPressed(DWORD code, PowerToysSettings::Hotke
 
 void VideoConferenceModule::reverseMicrophoneMute()
 {
-    bool muted = false;
+    // All controlled mic should same state with _microphoneTrackedInUI
+    // Avoid manually change in Control Panel make controlled mic has different state
+    bool muted = !getMicrophoneMuteState();
     for (auto& controlledMic : instance->_controlledMicrophones)
     {
-        const bool was_muted = controlledMic.muted();
-        controlledMic.toggle_muted();
-        muted = muted || !was_muted;
+        controlledMic->set_muted(muted);
     }
     if (muted)
     {
         Trace::MicrophoneMuted();
     }
+    instance->_mic_muted_state_during_disconnect = !instance->_mic_muted_state_during_disconnect;
+
     toolbar.setMicrophoneMute(muted);
 }
 
 bool VideoConferenceModule::getMicrophoneMuteState()
 {
-    return instance->_microphoneTrackedInUI ? instance->_microphoneTrackedInUI->muted() : false;
+    return instance->_microphoneTrackedInUI ? instance->_microphoneTrackedInUI->muted() : instance->_mic_muted_state_during_disconnect;
 }
 
 void VideoConferenceModule::reverseVirtualCameraMuteState()
@@ -120,10 +124,10 @@ LRESULT CALLBACK VideoConferenceModule::LowLevelKeyboardProc(int nCode, WPARAM w
 {
     if (nCode == HC_ACTION)
     {
+        KBDLLHOOKSTRUCT* kbd = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
         switch (wParam)
         {
         case WM_KEYDOWN:
-            KBDLLHOOKSTRUCT* kbd = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
 
             if (isHotkeyPressed(kbd->vkCode, settings.cameraAndMicrophoneMuteHotkey))
             {
@@ -160,9 +164,29 @@ LRESULT CALLBACK VideoConferenceModule::LowLevelKeyboardProc(int nCode, WPARAM w
                 reverseMicrophoneMute();
                 return 1;
             }
+            else if (isHotkeyPressed(kbd->vkCode, settings.microphonePushToTalkHotkey))
+            {
+                if (!pushToTalkPressed)
+                {
+                    if (settings.pushToReverseEnabled || getMicrophoneMuteState())
+                    {
+                        reverseMicrophoneMute();
+                    }
+                    pushToTalkPressed = true;
+                }
+                return 1;
+            }
             else if (isHotkeyPressed(kbd->vkCode, settings.cameraMuteHotkey))
             {
                 reverseVirtualCameraMuteState();
+                return 1;
+            }
+            break;
+        case WM_KEYUP:
+            if (pushToTalkPressed && (kbd->vkCode == settings.microphonePushToTalkHotkey.get_code()))
+            {
+                reverseMicrophoneMute();
+                pushToTalkPressed = false;
                 return 1;
             }
         }
@@ -225,6 +249,14 @@ void VideoConferenceModule::onModuleSettingsChanged()
             {
                 settings.microphoneMuteHotkey = PowerToysSettings::HotkeyObject::from_json(*val);
             }
+            if (const auto val = values.get_json(L"push_to_talk_microphone_hotkey"))
+            {
+                settings.microphonePushToTalkHotkey = PowerToysSettings::HotkeyObject::from_json(*val);
+            }
+            if (const auto val = values.get_bool_value(L"push_to_reverse_enabled"))
+            {
+                settings.pushToReverseEnabled = *val;
+            }
             if (const auto val = values.get_json(L"mute_camera_hotkey"))
             {
                 settings.cameraMuteHotkey = PowerToysSettings::HotkeyObject::from_json(*val);
@@ -247,9 +279,13 @@ void VideoConferenceModule::onModuleSettingsChanged()
                 settings.imageOverlayPath = val.value();
                 sendOverlayImageUpdate();
             }
-            if (const auto val = values.get_bool_value(L"hide_toolbar_when_unmuted"))
+            if (const auto val = values.get_string_value(L"toolbar_hide"))
             {
-                toolbar.setHideToolbarWhenUnmuted(val.value());
+                toolbar.setToolbarHide(val.value());
+            }
+            if (const auto val = values.get_string_value(L"startup_action"))
+            {
+                settings.startupAction = val.value();
             }
 
             const auto selectedMic = values.get_string_value(L"selected_mic");
@@ -268,11 +304,47 @@ void VideoConferenceModule::onModuleSettingsChanged()
     }
 }
 
-VideoConferenceModule::VideoConferenceModule() :
-    _generalSettingsWatcher{ PTSettingsHelper::get_powertoys_general_save_file_location(), [this] {
-                                toolbar.scheduleGeneralSettingsUpdate();
-                            } },
-    _moduleSettingsWatcher{ PTSettingsHelper::get_module_save_file_location(get_key()), [this] { toolbar.scheduleModuleSettingsUpdate(); } }
+void VideoConferenceModule::onMicrophoneConfigurationChanged()
+{
+    if (!_controllingAllMics)
+    {
+        // Don't care if we don't control all the mics
+        return;
+    }
+
+    const bool mutedStateForNewMics = getMicrophoneMuteState();
+    std::unordered_set<std::wstring_view> currentlyTrackedMicsIds;
+    for (const auto& controlledMic : _controlledMicrophones)
+    {
+        currentlyTrackedMicsIds.emplace(controlledMic->id());
+    }
+
+    auto allMics = MicrophoneDevice::getAllActive();
+    for (auto& newMic : allMics)
+    {
+        if (currentlyTrackedMicsIds.contains(newMic->id()))
+        {
+            continue;
+        }
+
+        if (mutedStateForNewMics)
+        {
+            newMic->set_muted(true);
+        }
+
+        _controlledMicrophones.emplace_back(std::move(newMic));
+    }
+    // Restore invalidated pointer
+    _microphoneTrackedInUI = controlledDefaultMic();
+    if (_microphoneTrackedInUI)
+    {
+        _microphoneTrackedInUI->set_mute_changed_callback([](const bool muted) {
+            toolbar.setMicrophoneMute(muted);
+        });
+    }
+}
+
+VideoConferenceModule::VideoConferenceModule()
 {
     init_settings();
     _settingsUpdateChannel =
@@ -280,7 +352,14 @@ VideoConferenceModule::VideoConferenceModule() :
     if (_settingsUpdateChannel)
     {
         _settingsUpdateChannel->access([](auto memory) {
+
+// Suppress warning 26403 -  Reset or explicitly delete an owner<T> pointer 'variable' (r.3)
+// the video conference class should be only instantiated once and it is using placement new
+// the access to the data can be done through memory._data
+#pragma warning(push)
+#pragma warning(disable : 26403)
             auto updatesChannel = new (memory._data) CameraSettingsUpdateChannel{};
+#pragma warning(pop)
         });
     }
     sendSourceCameraNameUpdate();
@@ -300,6 +379,12 @@ const wchar_t* VideoConferenceModule::get_name()
 const wchar_t* VideoConferenceModule::get_key()
 {
     return L"Video Conference";
+}
+
+// Return the configured status for the gpo policy for the module
+powertoys_gpo::gpo_rule_configured_t VideoConferenceModule::gpo_policy_enabled_configuration()
+{
+    return powertoys_gpo::getConfiguredVideoConferenceMuteEnabledValue();
 }
 
 bool VideoConferenceModule::get_config(wchar_t* buffer, int* buffer_size)
@@ -334,6 +419,14 @@ void VideoConferenceModule::init_settings()
         {
             settings.microphoneMuteHotkey = PowerToysSettings::HotkeyObject::from_json(*val);
         }
+        if (const auto val = powerToysSettings.get_json(L"push_to_talk_microphone_hotkey"))
+        {
+            settings.microphonePushToTalkHotkey = PowerToysSettings::HotkeyObject::from_json(*val);
+        }
+        if (const auto val = powerToysSettings.get_bool_value(L"push_to_reverse_enabled"))
+        {
+            settings.pushToReverseEnabled = *val;
+        }
         if (const auto val = powerToysSettings.get_json(L"mute_camera_hotkey"))
         {
             settings.cameraMuteHotkey = PowerToysSettings::HotkeyObject::from_json(*val);
@@ -354,9 +447,13 @@ void VideoConferenceModule::init_settings()
         {
             settings.imageOverlayPath = val.value();
         }
-        if (const auto val = powerToysSettings.get_bool_value(L"hide_toolbar_when_unmuted"))
+        if (const auto val = powerToysSettings.get_string_value(L"toolbar_hide"))
         {
-            toolbar.setHideToolbarWhenUnmuted(val.value());
+            toolbar.setToolbarHide(val.value());
+        }
+        if (const auto val = powerToysSettings.get_string_value(L"startup_action"))
+        {
+            settings.startupAction = val.value();
         }
         if (const auto val = powerToysSettings.get_string_value(L"selected_mic"); val && *val != settings.selectedMicrophone)
         {
@@ -388,45 +485,69 @@ void VideoConferenceModule::updateControlledMicrophones(const std::wstring_view 
 {
     for (auto& controlledMic : _controlledMicrophones)
     {
-        controlledMic.set_muted(false);
+        controlledMic->set_muted(false);
     }
     _controlledMicrophones.clear();
     _microphoneTrackedInUI = nullptr;
     auto allMics = MicrophoneDevice::getAllActive();
     if (new_mic == L"[All]")
     {
+        _controllingAllMics = true;
         _controlledMicrophones = std::move(allMics);
-        if (auto defaultMic = MicrophoneDevice::getDefault())
-        {
-            for (auto& controlledMic : _controlledMicrophones)
-            {
-                if (controlledMic.id() == defaultMic->id())
-                {
-                    _microphoneTrackedInUI = &controlledMic;
-                    break;
-                }
-            }
-        }
+        _microphoneTrackedInUI = controlledDefaultMic();
     }
     else
     {
+        _controllingAllMics = false;
         for (auto& controlledMic : allMics)
         {
-            if (controlledMic.name() == new_mic)
+            if (controlledMic->name() == new_mic)
             {
                 _controlledMicrophones.emplace_back(std::move(controlledMic));
-                _microphoneTrackedInUI = &_controlledMicrophones[0];
+                _microphoneTrackedInUI = _controlledMicrophones[0].get();
                 break;
             }
         }
     }
+
     if (_microphoneTrackedInUI)
     {
-        _microphoneTrackedInUI->set_mute_changed_callback([&](const bool muted) {
+        _microphoneTrackedInUI->set_mute_changed_callback([](const bool muted) {
             toolbar.setMicrophoneMute(muted);
         });
         toolbar.setMicrophoneMute(_microphoneTrackedInUI->muted());
     }
+
+    if (settings.startupAction == L"Unmute")
+    {
+        for (auto& controlledMic : _controlledMicrophones)
+        {
+            controlledMic->set_muted(false);
+        }
+    }
+    else if (settings.startupAction == L"Mute")
+    {
+        for (auto& controlledMic : _controlledMicrophones)
+        {
+            controlledMic->set_muted(true);
+        }
+    }
+}
+
+MicrophoneDevice* VideoConferenceModule::controlledDefaultMic()
+{
+    if (auto defaultMic = MicrophoneDevice::getDefault())
+    {
+        for (auto& controlledMic : _controlledMicrophones)
+        {
+            if (controlledMic->id() == defaultMic->id())
+            {
+                return controlledMic.get();
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 void toggleProxyCamRegistration(const bool enable)
@@ -436,10 +557,12 @@ void toggleProxyCamRegistration(const bool enable)
         return;
     }
 
-    auto vcmRoot = fs::path{ get_module_folderpath() } / "modules";
-    vcmRoot /= "VideoConference";
-
+    auto vcmRoot = fs::path{ get_module_folderpath() };
+#if defined(_M_ARM64)
+    std::array<fs::path, 2> proxyFilters = { vcmRoot / "PowerToys.VideoConferenceProxyFilter_ARM64.dll", vcmRoot / "PowerToys.VideoConferenceProxyFilter_x86.dll" };
+#else
     std::array<fs::path, 2> proxyFilters = { vcmRoot / "PowerToys.VideoConferenceProxyFilter_x64.dll", vcmRoot / "PowerToys.VideoConferenceProxyFilter_x86.dll" };
+#endif
     for (const auto filter : proxyFilters)
     {
         std::wstring params{ L"/s " };
@@ -463,6 +586,15 @@ void VideoConferenceModule::enable()
 {
     if (!_enabled)
     {
+        _generalSettingsWatcher = std::make_unique<FileWatcher>(
+            PTSettingsHelper::get_powertoys_general_save_file_location(), [this] {
+                toolbar.scheduleGeneralSettingsUpdate();
+            });
+        _moduleSettingsWatcher = std::make_unique<FileWatcher>(
+            PTSettingsHelper::get_module_save_file_location(get_key()), [this] {
+                toolbar.scheduleModuleSettingsUpdate();
+            });
+
         toggleProxyCamRegistration(true);
         toolbar.setMicrophoneMute(getMicrophoneMuteState());
         toolbar.setCameraMute(getVirtualCameraMuteState());
@@ -494,10 +626,25 @@ void VideoConferenceModule::unmuteAll()
     }
 }
 
+void VideoConferenceModule::muteAll()
+{
+    if (!getVirtualCameraMuteState())
+    {
+        reverseVirtualCameraMuteState();
+    }
+
+    if (!getMicrophoneMuteState())
+    {
+        reverseMicrophoneMute();
+    }
+}
+
 void VideoConferenceModule::disable()
 {
     if (_enabled)
     {
+        _generalSettingsWatcher.reset();
+        _moduleSettingsWatcher.reset();
         toggleProxyCamRegistration(false);
         if (hook_handle)
         {
@@ -545,6 +692,14 @@ void VideoConferenceModule::sendSourceCameraNameUpdate()
         auto updatesChannel = reinterpret_cast<CameraSettingsUpdateChannel*>(memory._data);
         updatesChannel->sourceCameraName.emplace();
         std::copy(begin(settings.selectedCamera), end(settings.selectedCamera), begin(*updatesChannel->sourceCameraName));
+        if (settings.startupAction == L"Unmute")
+        {
+            updatesChannel->useOverlayImage = false;
+        }
+        else if (settings.startupAction == L"Mute")
+        {
+            updatesChannel->useOverlayImage = true;
+        }
     });
 }
 
@@ -562,7 +717,7 @@ void VideoConferenceModule::sendOverlayImageUpdate()
     PathRemoveFileSpecW(powertoysDirectory);
 
     std::wstring blankImagePath(powertoysDirectory);
-    blankImagePath += L"\\modules\\VideoConference\\black.bmp";
+    blankImagePath += L"\\Assets\\VCM\\black.bmp";
 
     _imageOverlayChannel = SerializedSharedMemory::create_readonly(CameraOverlayImageChannel::endpoint(),
                                                                    settings.imageOverlayPath != L"" ? settings.imageOverlayPath : blankImagePath);

@@ -4,8 +4,9 @@
     "SignBatches": [
         {
             "MatchedPath": [
-                "PowerToysSetup-*.exe",
-                "PowerToysSetup-*.msi"
+                "PowerToysSetupCustomActions.dll",
+                "PowerToys*Setup-*.exe",
+                "PowerToys*Setup-*.msi"
             ],
             "SigningInfo": {
                 "Operations": [

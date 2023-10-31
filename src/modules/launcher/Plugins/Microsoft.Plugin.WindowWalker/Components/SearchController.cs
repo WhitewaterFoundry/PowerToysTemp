@@ -34,7 +34,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         /// <summary>
         /// Gets or sets the current search text
         /// </summary>
-        public string SearchText
+        internal string SearchText
         {
             get
             {
@@ -51,7 +51,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         /// <summary>
         /// Gets the open window search results
         /// </summary>
-        public List<SearchResult> SearchMatches
+        internal List<SearchResult> SearchMatches
         {
             get { return new List<SearchResult>(searchMatches).OrderByDescending(x => x.Score).ToList(); }
         }
@@ -59,7 +59,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         /// <summary>
         /// Gets singleton Pattern
         /// </summary>
-        public static SearchController Instance
+        internal static SearchController Instance
         {
             get
             {
@@ -84,7 +84,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         /// <summary>
         /// Event handler for when the search text has been updated
         /// </summary>
-        public void UpdateSearchText(string searchText)
+        internal void UpdateSearchText(string searchText)
         {
             SearchText = searchText;
             SyncOpenWindowsWithModel();
@@ -93,7 +93,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
         /// <summary>
         /// Syncs the open windows with the OpenWindows Model
         /// </summary>
-        public void SyncOpenWindowsWithModel()
+        internal void SyncOpenWindowsWithModel()
         {
             System.Diagnostics.Debug.Print("Syncing WindowSearch result with OpenWindows Model");
 
@@ -101,7 +101,7 @@ namespace Microsoft.Plugin.WindowWalker.Components
 
             if (string.IsNullOrWhiteSpace(SearchText))
             {
-                searchMatches = new List<SearchResult>();
+                searchMatches = AllOpenWindows(snapshotOfOpenWindows);
             }
             else
             {
@@ -117,23 +117,16 @@ namespace Microsoft.Plugin.WindowWalker.Components
         private List<SearchResult> FuzzySearchOpenWindows(List<Window> openWindows)
         {
             List<SearchResult> result = new List<SearchResult>();
-            List<SearchString> searchStrings = new List<SearchString>();
+            var searchStrings = new SearchString(searchText, SearchResult.SearchType.Fuzzy);
 
-            searchStrings.Add(new SearchString(searchText, SearchResult.SearchType.Fuzzy));
-
-            foreach (var searchString in searchStrings)
+            foreach (var window in openWindows)
             {
-                foreach (var window in openWindows)
-                {
-                    var titleMatch = FuzzyMatching.FindBestFuzzyMatch(window.Title, searchString.SearchText);
-                    var processMatch = FuzzyMatching.FindBestFuzzyMatch(window.ProcessInfo.Name, searchString.SearchText);
+                var titleMatch = FuzzyMatching.FindBestFuzzyMatch(window.Title, searchStrings.SearchText);
+                var processMatch = FuzzyMatching.FindBestFuzzyMatch(window.Process.Name, searchStrings.SearchText);
 
-                    if ((titleMatch.Count != 0 || processMatch.Count != 0) &&
-                                window.Title.Length != 0)
-                    {
-                        var temp = new SearchResult(window, titleMatch, processMatch, searchString.SearchType);
-                        result.Add(temp);
-                    }
+                if ((titleMatch.Count != 0 || processMatch.Count != 0) && window.Title.Length != 0)
+                {
+                    result.Add(new SearchResult(window, titleMatch, processMatch, searchStrings.SearchType));
                 }
             }
 
@@ -143,9 +136,29 @@ namespace Microsoft.Plugin.WindowWalker.Components
         }
 
         /// <summary>
+        /// Search method that matches all the windows with a title
+        /// </summary>
+        /// <param name="openWindows">what windows are open</param>
+        /// <returns>Returns search results</returns>
+        private List<SearchResult> AllOpenWindows(List<Window> openWindows)
+        {
+            List<SearchResult> result = new List<SearchResult>();
+
+            foreach (var window in openWindows)
+            {
+                if (window.Title.Length != 0)
+                {
+                    result.Add(new SearchResult(window));
+                }
+            }
+
+            return result.OrderBy(w => w.Result.Title).ToList();
+        }
+
+        /// <summary>
         /// Event args for a window list update event
         /// </summary>
-        public class SearchResultUpdateEventArgs : EventArgs
+        internal class SearchResultUpdateEventArgs : EventArgs
         {
         }
     }

@@ -51,6 +51,8 @@ namespace Microsoft.Plugin.Indexer
 
         public string Description => Properties.Resources.Microsoft_plugin_indexer_plugin_description;
 
+        public static string PluginID => "2140FC9819AD43A3A616E2735815C27C";
+
         public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
         {
             new PluginAdditionalOption()
@@ -71,7 +73,6 @@ namespace Microsoft.Plugin.Indexer
         }
 
         // This function uses the Windows indexer and returns the list of results obtained
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "We want to keep the process alive but will log the exception")]
         public List<Result> Query(Query query, bool isFullQuery)
         {
             var results = new List<Result>();

@@ -3,9 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Library.Interfaces;
 using Microsoft.PowerToys.Settings.UI.Library.Utilities;
 
@@ -50,13 +50,16 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("download_updates_automatically")]
         public bool AutoDownloadUpdates { get; set; }
 
-        [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Any error from calling interop code should not prevent the program from loading.")]
+        [JsonPropertyName("enable_experimentation")]
+        public bool EnableExperimentation { get; set; }
+
         public GeneralSettings()
         {
             Startup = false;
             IsAdmin = false;
             IsElevated = false;
             AutoDownloadUpdates = false;
+            EnableExperimentation = true;
             Theme = "system";
             SystemTheme = "light";
             try
@@ -109,6 +112,11 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             }
 
             return false;
+        }
+
+        public void AddEnabledModuleChangeNotification(Action callBack)
+        {
+            Enabled.AddEnabledModuleChangeNotification(callBack);
         }
     }
 }

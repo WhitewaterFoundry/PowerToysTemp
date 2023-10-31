@@ -26,9 +26,12 @@ namespace Microsoft.PowerToys.Run.Plugin.System.UnitTests
         [DataRow("lock", "Images\\lock.dark.png")]
         [DataRow("sleep", "Images\\sleep.dark.png")]
         [DataRow("hibernate", "Images\\sleep.dark.png")]
-        [DataRow("empty recycle", "Images\\recyclebin.dark.png")]
+        [DataRow("recycle bin", "Images\\recyclebin.dark.png")]
         [DataRow("uefi firmware settings", "Images\\firmwareSettings.dark.png")]
-        public void IconThemeDarkTest(string typedString, string expectedResult)
+        [DataRow("ip v4 addr", "Images\\networkAdapter.dark.png", true)]
+        [DataRow("ip v6 addr", "Images\\networkAdapter.dark.png", true)]
+        [DataRow("mac addr", "Images\\networkAdapter.dark.png", true)]
+        public void IconThemeDarkTest(string typedString, string expectedResult, bool isDelayed = default)
         {
             // Setup
             Mock<Main> main = new Mock<Main>();
@@ -37,7 +40,7 @@ namespace Microsoft.PowerToys.Run.Plugin.System.UnitTests
             Query expectedQuery = new Query(typedString);
 
             // Act
-            var result = main.Object.Query(expectedQuery).FirstOrDefault().IcoPath;
+            var result = !isDelayed ? main.Object.Query(expectedQuery).FirstOrDefault().IcoPath : main.Object.Query(expectedQuery, true).FirstOrDefault().IcoPath;
 
             // Assert
             Assert.AreEqual(expectedResult, result);
@@ -50,9 +53,12 @@ namespace Microsoft.PowerToys.Run.Plugin.System.UnitTests
         [DataRow("lock", "Images\\lock.light.png")]
         [DataRow("sleep", "Images\\sleep.light.png")]
         [DataRow("hibernate", "Images\\sleep.light.png")]
-        [DataRow("empty recycle", "Images\\recyclebin.light.png")]
+        [DataRow("recycle bin", "Images\\recyclebin.light.png")]
         [DataRow("uefi firmware settings", "Images\\firmwareSettings.light.png")]
-        public void IconThemeLightTest(string typedString, string expectedResult)
+        [DataRow("ipv4 addr", "Images\\networkAdapter.light.png", true)]
+        [DataRow("ipv6 addr", "Images\\networkAdapter.light.png", true)]
+        [DataRow("mac addr", "Images\\networkAdapter.light.png", true)]
+        public void IconThemeLightTest(string typedString, string expectedResult, bool isDelayed = default)
         {
             // Setup
             Mock<Main> main = new Mock<Main>();
@@ -61,7 +67,7 @@ namespace Microsoft.PowerToys.Run.Plugin.System.UnitTests
             Query expectedQuery = new Query(typedString);
 
             // Act
-            var result = main.Object.Query(expectedQuery).FirstOrDefault().IcoPath;
+            var result = !isDelayed ? main.Object.Query(expectedQuery).FirstOrDefault().IcoPath : main.Object.Query(expectedQuery, true).FirstOrDefault().IcoPath;
 
             // Assert
             Assert.AreEqual(expectedResult, result);

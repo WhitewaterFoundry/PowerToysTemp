@@ -4,16 +4,24 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
+using System.Windows.Controls;
 using ManagedCommon;
 using Microsoft.Plugin.WindowWalker.Components;
+using Microsoft.PowerToys.Settings.UI.Library;
 using Wox.Plugin;
+using Wox.Plugin.Common.VirtualDesktop.Helper;
 
 namespace Microsoft.Plugin.WindowWalker
 {
-    public class Main : IPlugin, IPluginI18n
+    public class Main : IPlugin, IPluginI18n, ISettingProvider, IContextMenu, IDisposable
     {
+        private CancellationTokenSource _cancellationTokenSource = new();
+        private bool _disposed;
+
         private string IconPath { get; set; }
+
+        private string InfoIconPath { get; set; }
 
         private PluginInitContext Context { get; set; }
 
@@ -21,10 +29,9 @@ namespace Microsoft.Plugin.WindowWalker
 
         public string Description => Properties.Resources.wox_plugin_windowwalker_plugin_description;
 
-        static Main()
-        {
-            OpenWindows.Instance.UpdateOpenWindowsList();
-        }
+        public static string PluginID => "F737A9223560B3C6833B5FFB8CDF78E5";
+
+        internal static readonly VirtualDesktopHelper VirtualDesktopHelperInstance = new VirtualDesktopHelper();
 
         public List<Result> Query(Query query)
         {
@@ -33,24 +40,21 @@ namespace Microsoft.Plugin.WindowWalker
                 throw new ArgumentNullException(nameof(query));
             }
 
-            OpenWindows.Instance.UpdateOpenWindowsList();
+            _cancellationTokenSource?.Cancel();
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = new CancellationTokenSource();
+
+            VirtualDesktopHelperInstance.UpdateDesktopList();
+            OpenWindows.Instance.UpdateOpenWindowsList(_cancellationTokenSource.Token);
             SearchController.Instance.UpdateSearchText(query.Search);
             List<SearchResult> searchControllerResults = SearchController.Instance.SearchMatches;
 
-            return searchControllerResults.Select(x => new Result()
-            {
-                Title = x.Result.Title,
-                IcoPath = IconPath,
-                SubTitle = Properties.Resources.wox_plugin_windowwalker_running + ": " + x.Result.ProcessInfo.Name,
-                Action = c =>
-                {
-                    x.Result.SwitchToWindow();
-                    return true;
-                },
+            return ResultHelper.GetResultList(searchControllerResults, !string.IsNullOrEmpty(query.ActionKeyword), IconPath, InfoIconPath);
+        }
 
-                // For debugging you can remove the comment sign in the next line.
-                // ToolTipData = new ToolTipData(x.Result.Title, $"hWnd: {x.Result.Hwnd}\nWindow class: {x.Result.ClassName}\nProcess ID: {x.Result.ProcessInfo.ProcessID}\nThread ID: {x.Result.ProcessInfo.ThreadID}\nProcess: {x.Result.ProcessInfo.Name}\nProcess exists: {x.Result.ProcessInfo.DoesExist}\nIs full access denied: {x.Result.ProcessInfo.IsFullAccessDenied}\nIs uwp app: {x.Result.ProcessInfo.IsUwpApp}\nIs ShellProcess: {x.Result.ProcessInfo.IsShellProcess}\nIs window cloaked: {x.Result.IsCloaked}\nWindow cloak state: {x.Result.GetWindowCloakState()}"),
-            }).ToList();
+        public List<ContextMenuResult> LoadContextMenus(Result selectedResult)
+        {
+            return ContextMenuHelper.GetContextMenuResults(selectedResult);
         }
 
         public void Init(PluginInitContext context)
@@ -60,16 +64,23 @@ namespace Microsoft.Plugin.WindowWalker
             UpdateIconPath(Context.API.GetCurrentTheme());
         }
 
+        public IEnumerable<PluginAdditionalOption> AdditionalOptions
+        {
+            get { return WindowWalkerSettings.GetAdditionalOptions(); }
+        }
+
         // Todo : Update with theme based IconPath
         private void UpdateIconPath(Theme theme)
         {
             if (theme == Theme.Light || theme == Theme.HighContrastWhite)
             {
                 IconPath = "Images/windowwalker.light.png";
+                InfoIconPath = "Images/info.light.png";
             }
             else
             {
                 IconPath = "Images/windowwalker.dark.png";
+                InfoIconPath = "Images/info.dark.png";
             }
         }
 
@@ -86,6 +97,34 @@ namespace Microsoft.Plugin.WindowWalker
         public string GetTranslatedPluginDescription()
         {
             return Properties.Resources.wox_plugin_windowwalker_plugin_description;
+        }
+
+        public Control CreateSettingPanel()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void UpdateSettings(PowerLauncherPluginSettings settings)
+        {
+            WindowWalkerSettings.Instance.UpdateSettings(settings);
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    _cancellationTokenSource?.Dispose();
+                    _disposed = true;
+                }
+            }
         }
     }
 }

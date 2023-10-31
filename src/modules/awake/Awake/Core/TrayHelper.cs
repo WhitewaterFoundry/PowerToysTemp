@@ -3,292 +3,151 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 using System.Drawing;
-using System.IO;
-using System.Text.Json;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Awake.Core.Models;
+using Awake.Core.Native;
+using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Library;
-using NLog;
-
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-#pragma warning disable CS8603 // Possible null reference return.
 
 namespace Awake.Core
 {
+    /// <summary>
+    /// Helper class used to manage the system tray.
+    /// </summary>
+    /// <remarks>
+    /// Because Awake is a console application, there is no built-in
+    /// way to embed UI components so we have to heavily rely on the native Windows API.
+    /// </remarks>
     internal static class TrayHelper
     {
-        private static readonly Logger _log;
+        private static IntPtr _trayMenu;
 
-        private static NotifyIcon? _trayIcon;
+        private static IntPtr TrayMenu { get => _trayMenu; set => _trayMenu = value; }
 
-        private static NotifyIcon TrayIcon { get => _trayIcon; set => _trayIcon = value; }
-
-        private static SettingsUtils? _moduleSettings;
-
-        private static SettingsUtils ModuleSettings { get => _moduleSettings; set => _moduleSettings = value; }
+        private static NotifyIcon TrayIcon { get; set; }
 
         static TrayHelper()
         {
-            _log = LogManager.GetCurrentClassLogger();
             TrayIcon = new NotifyIcon();
-            ModuleSettings = new SettingsUtils();
         }
 
-        public static void InitializeTray(string text, Icon icon, ContextMenuStrip? contextMenu = null)
+        public static void InitializeTray(string text, Icon icon, ManualResetEvent? exitSignal, ContextMenuStrip? contextMenu = null)
         {
             Task.Factory.StartNew(
                 (tray) =>
                 {
-                    ((NotifyIcon?)tray).Text = text;
-                    ((NotifyIcon?)tray).Icon = icon;
-                    ((NotifyIcon?)tray).ContextMenuStrip = contextMenu;
-                    ((NotifyIcon?)tray).Visible = true;
-
-                    _log.Info("Setting up the tray.");
-                    Application.Run();
-                    _log.Info("Tray setup complete.");
-                }, TrayIcon);
+                    try
+                    {
+                        Logger.LogInfo("Setting up the tray.");
+                        if (tray != null)
+                        {
+                            ((NotifyIcon)tray).Text = text;
+                            ((NotifyIcon)tray).Icon = icon;
+                            ((NotifyIcon)tray).ContextMenuStrip = contextMenu;
+                            ((NotifyIcon)tray).Visible = true;
+                            ((NotifyIcon)tray).MouseClick += TrayClickHandler;
+                            Application.AddMessageFilter(new TrayMessageFilter(exitSignal));
+                            Application.Run();
+                            Logger.LogInfo("Tray setup complete.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError($"An error occurred initializing the tray. {ex.Message}");
+                        Logger.LogError($"{ex.StackTrace}");
+                    }
+                },
+                TrayIcon);
         }
 
-        public static void ClearTray()
+        /// <summary>
+        /// Function used to construct the context menu in the tray natively.
+        /// </summary>
+        /// <remarks>
+        /// We need to use the Windows API here instead of the common control exposed
+        /// by NotifyIcon because the one that is built into the Windows Forms stack
+        /// hasn't been updated in a while and is looking like Office XP. That introduces
+        /// scalability and coloring changes on any OS past Windows XP.
+        /// </remarks>
+        /// <param name="sender">The sender that triggers the handler.</param>
+        /// <param name="e">MouseEventArgs instance containing mouse click event information.</param>
+        private static void TrayClickHandler(object? sender, MouseEventArgs e)
         {
-            TrayIcon.Icon = null;
-            TrayIcon.Dispose();
+            IntPtr windowHandle = Manager.GetHiddenWindow();
+
+            if (windowHandle != IntPtr.Zero)
+            {
+                Bridge.SetForegroundWindow(windowHandle);
+                Bridge.TrackPopupMenuEx(TrayMenu, 0, Cursor.Position.X, Cursor.Position.Y, windowHandle, IntPtr.Zero);
+            }
         }
 
-        internal static void SetTray(string text, AwakeSettings settings)
+        internal static void SetTray(string text, AwakeSettings settings, bool startedFromPowerToys)
         {
             SetTray(
                 text,
                 settings.Properties.KeepDisplayOn,
                 settings.Properties.Mode,
-                PassiveKeepAwakeCallback(InternalConstants.AppName),
-                IndefiniteKeepAwakeCallback(InternalConstants.AppName),
-                TimedKeepAwakeCallback(InternalConstants.AppName),
-                KeepDisplayOnCallback(InternalConstants.AppName),
-                ExitCallback());
+                settings.Properties.CustomTrayTimes,
+                startedFromPowerToys);
         }
 
-        private static Action ExitCallback()
+        public static void SetTray(string text, bool keepDisplayOn, AwakeMode mode, Dictionary<string, int> trayTimeShortcuts, bool startedFromPowerToys)
         {
-            return () =>
+            if (TrayMenu != IntPtr.Zero)
             {
-                Environment.Exit(Environment.ExitCode);
-            };
-        }
+                var destructionStatus = Bridge.DestroyMenu(TrayMenu);
+                if (destructionStatus != true)
+                {
+                    Logger.LogError("Failed to destroy menu.");
+                }
+            }
 
-        private static Action KeepDisplayOnCallback(string moduleName)
-        {
-            return () =>
+            TrayMenu = Bridge.CreatePopupMenu();
+
+            if (TrayMenu != IntPtr.Zero)
             {
-                AwakeSettings currentSettings;
-
-                try
+                if (!startedFromPowerToys)
                 {
-                    currentSettings = ModuleSettings.GetSettings<AwakeSettings>(moduleName);
-                }
-                catch (FileNotFoundException)
-                {
-                    currentSettings = new AwakeSettings();
-                }
-
-                currentSettings.Properties.KeepDisplayOn = !currentSettings.Properties.KeepDisplayOn;
-
-                ModuleSettings.SaveSettings(JsonSerializer.Serialize(currentSettings), moduleName);
-            };
-        }
-
-        private static Action<uint, uint> TimedKeepAwakeCallback(string moduleName)
-        {
-            return (hours, minutes) =>
-            {
-                AwakeSettings currentSettings;
-
-                try
-                {
-                    currentSettings = ModuleSettings.GetSettings<AwakeSettings>(moduleName);
-                }
-                catch (FileNotFoundException)
-                {
-                    currentSettings = new AwakeSettings();
+                    // If Awake is started from PowerToys, the correct way to exit it is disabling it from Settings.
+                    Bridge.InsertMenu(TrayMenu, 0, Native.Constants.MF_BYPOSITION | Native.Constants.MF_STRING, (uint)TrayCommands.TC_EXIT, "Exit");
+                    Bridge.InsertMenu(TrayMenu, 0, Native.Constants.MF_BYPOSITION | Native.Constants.MF_SEPARATOR, 0, string.Empty);
                 }
 
-                currentSettings.Properties.Mode = AwakeMode.TIMED;
-                currentSettings.Properties.Hours = hours;
-                currentSettings.Properties.Minutes = minutes;
+                Bridge.InsertMenu(TrayMenu, 0,  Native.Constants.MF_BYPOSITION | Native.Constants.MF_STRING | (keepDisplayOn ? Native.Constants.MF_CHECKED : Native.Constants.MF_UNCHECKED) | (mode == AwakeMode.PASSIVE ? Native.Constants.MF_DISABLED : Native.Constants.MF_ENABLED), (uint)TrayCommands.TC_DISPLAY_SETTING, "Keep screen on");
+            }
 
-                ModuleSettings.SaveSettings(JsonSerializer.Serialize(currentSettings), moduleName);
-            };
-        }
-
-        private static Action PassiveKeepAwakeCallback(string moduleName)
-        {
-            return () =>
+            // In case there are no tray shortcuts defined for the application default to a
+            // reasonable initial set.
+            if (trayTimeShortcuts.Count == 0)
             {
-                AwakeSettings currentSettings;
+                trayTimeShortcuts.AddRange(Manager.GetDefaultTrayOptions());
+            }
 
-                try
-                {
-                    currentSettings = ModuleSettings.GetSettings<AwakeSettings>(moduleName);
-                }
-                catch (FileNotFoundException)
-                {
-                    currentSettings = new AwakeSettings();
-                }
-
-                currentSettings.Properties.Mode = AwakeMode.PASSIVE;
-
-                ModuleSettings.SaveSettings(JsonSerializer.Serialize(currentSettings), moduleName);
-            };
-        }
-
-        private static Action IndefiniteKeepAwakeCallback(string moduleName)
-        {
-            return () =>
+            var awakeTimeMenu = Bridge.CreatePopupMenu();
+            for (int i = 0; i < trayTimeShortcuts.Count; i++)
             {
-                AwakeSettings currentSettings;
+                Bridge.InsertMenu(awakeTimeMenu, (uint)i, Native.Constants.MF_BYPOSITION | Native.Constants.MF_STRING, (uint)TrayCommands.TC_TIME + (uint)i, trayTimeShortcuts.ElementAt(i).Key);
+            }
 
-                try
-                {
-                    currentSettings = ModuleSettings.GetSettings<AwakeSettings>(moduleName);
-                }
-                catch (FileNotFoundException)
-                {
-                    currentSettings = new AwakeSettings();
-                }
+            Bridge.InsertMenu(TrayMenu, 0, Native.Constants.MF_BYPOSITION | Native.Constants.MF_SEPARATOR, 0, string.Empty);
 
-                currentSettings.Properties.Mode = AwakeMode.INDEFINITE;
-
-                ModuleSettings.SaveSettings(JsonSerializer.Serialize(currentSettings), moduleName);
-            };
-        }
-
-        public static void SetTray(string text, bool keepDisplayOn, AwakeMode mode, Action passiveKeepAwakeCallback, Action indefiniteKeepAwakeCallback, Action<uint, uint> timedKeepAwakeCallback, Action keepDisplayOnCallback, Action exitCallback)
-        {
-            ContextMenuStrip? contextMenuStrip = new ContextMenuStrip();
-
-            // Main toolstrip.
-            ToolStripMenuItem? operationContextMenu = new ToolStripMenuItem
-            {
-                Text = "Mode",
-            };
-
-            // No keep-awake menu item.
-            CheckButtonToolStripMenuItem? passiveMenuItem = new CheckButtonToolStripMenuItem
-            {
-                Text = "Off (Keep using the selected power plan)",
-            };
-
-            passiveMenuItem.Checked = mode == AwakeMode.PASSIVE;
-
-            passiveMenuItem.Click += (e, s) =>
-            {
-                // User opted to set the mode to indefinite, so we need to write new settings.
-                passiveKeepAwakeCallback();
-            };
-
-            // Indefinite keep-awake menu item.
-            CheckButtonToolStripMenuItem? indefiniteMenuItem = new CheckButtonToolStripMenuItem
-            {
-                Text = "Keep awake indefinitely",
-            };
-
-            indefiniteMenuItem.Checked = mode == AwakeMode.INDEFINITE;
-
-            indefiniteMenuItem.Click += (e, s) =>
-            {
-                // User opted to set the mode to indefinite, so we need to write new settings.
-                indefiniteKeepAwakeCallback();
-            };
-
-            CheckButtonToolStripMenuItem? displayOnMenuItem = new CheckButtonToolStripMenuItem
-            {
-                Text = "Keep screen on",
-            };
-
-            displayOnMenuItem.Checked = keepDisplayOn;
-
-            displayOnMenuItem.Click += (e, s) =>
-            {
-                // User opted to set the display mode directly.
-                keepDisplayOnCallback();
-            };
-
-            // Timed keep-awake menu item
-            ToolStripMenuItem? timedMenuItem = new ToolStripMenuItem
-            {
-                Text = "Keep awake temporarily",
-            };
-
-            timedMenuItem.Checked = mode == AwakeMode.TIMED;
-            timedMenuItem.AccessibleName = timedMenuItem.Text + (timedMenuItem.Checked ? ". Checked. " : ". UnChecked. ");
-
-            ToolStripMenuItem? halfHourMenuItem = new ToolStripMenuItem
-            {
-                Text = "30 minutes",
-            };
-
-            halfHourMenuItem.Click += (e, s) =>
-            {
-                // User is setting the keep-awake to 30 minutes.
-                timedKeepAwakeCallback(0, 30);
-            };
-
-            ToolStripMenuItem? oneHourMenuItem = new ToolStripMenuItem
-            {
-                Text = "1 hour",
-            };
-
-            oneHourMenuItem.Click += (e, s) =>
-            {
-                // User is setting the keep-awake to 1 hour.
-                timedKeepAwakeCallback(1, 0);
-            };
-
-            ToolStripMenuItem? twoHoursMenuItem = new ToolStripMenuItem
-            {
-                Text = "2 hours",
-            };
-
-            twoHoursMenuItem.Click += (e, s) =>
-            {
-                // User is setting the keep-awake to 2 hours.
-                timedKeepAwakeCallback(2, 0);
-            };
-
-            // Exit menu item.
-            ToolStripMenuItem? exitContextMenu = new ToolStripMenuItem
-            {
-                Text = "Exit",
-            };
-
-            exitContextMenu.Click += (e, s) =>
-            {
-                // User is setting the keep-awake to 2 hours.
-                exitCallback();
-            };
-
-            timedMenuItem.DropDownItems.Add(halfHourMenuItem);
-            timedMenuItem.DropDownItems.Add(oneHourMenuItem);
-            timedMenuItem.DropDownItems.Add(twoHoursMenuItem);
-
-            operationContextMenu.DropDownItems.Add(passiveMenuItem);
-            operationContextMenu.DropDownItems.Add(indefiniteMenuItem);
-            operationContextMenu.DropDownItems.Add(timedMenuItem);
-
-            contextMenuStrip.Items.Add(operationContextMenu);
-            contextMenuStrip.Items.Add(displayOnMenuItem);
-            contextMenuStrip.Items.Add(new ToolStripSeparator());
-            contextMenuStrip.Items.Add(exitContextMenu);
+            Bridge.InsertMenu(TrayMenu, 0, Native.Constants.MF_BYPOSITION | Native.Constants.MF_STRING | (mode == AwakeMode.PASSIVE ? Native.Constants.MF_CHECKED : Native.Constants.MF_UNCHECKED), (uint)TrayCommands.TC_MODE_PASSIVE, "Off (keep using the selected power plan)");
+            Bridge.InsertMenu(TrayMenu, 0, Native.Constants.MF_BYPOSITION | Native.Constants.MF_STRING | (mode == AwakeMode.INDEFINITE ? Native.Constants.MF_CHECKED : Native.Constants.MF_UNCHECKED), (uint)TrayCommands.TC_MODE_INDEFINITE, "Keep awake indefinitely");
+            Bridge.InsertMenu(TrayMenu, 0, Native.Constants.MF_BYPOSITION | Native.Constants.MF_POPUP | (mode == AwakeMode.TIMED ? Native.Constants.MF_CHECKED : Native.Constants.MF_UNCHECKED), (uint)awakeTimeMenu, "Keep awake on interval");
+            Bridge.InsertMenu(TrayMenu, 0, Native.Constants.MF_BYPOSITION | Native.Constants.MF_STRING | Native.Constants.MF_DISABLED | (mode == AwakeMode.EXPIRABLE ? Native.Constants.MF_CHECKED : Native.Constants.MF_UNCHECKED), (uint)TrayCommands.TC_MODE_EXPIRABLE, "Keep awake until expiration date and time");
 
             TrayIcon.Text = text;
-            TrayIcon.ContextMenuStrip = contextMenuStrip;
         }
 
-        private class CheckButtonToolStripMenuItemAccessibleObject : ToolStripItem.ToolStripItemAccessibleObject
+        private sealed class CheckButtonToolStripMenuItemAccessibleObject : ToolStripItem.ToolStripItemAccessibleObject
         {
-            private CheckButtonToolStripMenuItem _menuItem;
+            private readonly CheckButtonToolStripMenuItem _menuItem;
 
             public CheckButtonToolStripMenuItemAccessibleObject(CheckButtonToolStripMenuItem menuItem)
                 : base(menuItem)
@@ -296,23 +155,13 @@ namespace Awake.Core
                 _menuItem = menuItem;
             }
 
-            public override AccessibleRole Role
-            {
-                get
-                {
-                    return AccessibleRole.CheckButton;
-                }
-            }
+            public override AccessibleRole Role => AccessibleRole.CheckButton;
 
             public override string Name => _menuItem.Text + ", " + Role + ", " + (_menuItem.Checked ? "Checked" : "Unchecked");
         }
 
-        private class CheckButtonToolStripMenuItem : ToolStripMenuItem
+        private sealed class CheckButtonToolStripMenuItem : ToolStripMenuItem
         {
-            public CheckButtonToolStripMenuItem()
-            {
-            }
-
             protected override AccessibleObject CreateAccessibilityInstance()
             {
                 return new CheckButtonToolStripMenuItemAccessibleObject(this);

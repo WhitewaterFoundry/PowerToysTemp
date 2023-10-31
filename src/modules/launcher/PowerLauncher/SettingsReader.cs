@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Windows.Input;
 using Common.UI;
+using global::PowerToys.GPOWrapper;
 using Microsoft.PowerToys.Settings.UI.Library;
 using PowerLauncher.Helper;
 using PowerLauncher.Plugin;
@@ -105,6 +106,36 @@ namespace PowerLauncher
                         _settings.UseCentralizedKeyboardHook = overloadSettings.Properties.UseCentralizedKeyboardHook;
                     }
 
+                    if (_settings.SearchQueryResultsWithDelay != overloadSettings.Properties.SearchQueryResultsWithDelay)
+                    {
+                        _settings.SearchQueryResultsWithDelay = overloadSettings.Properties.SearchQueryResultsWithDelay;
+                    }
+
+                    if (_settings.SearchInputDelay != overloadSettings.Properties.SearchInputDelay)
+                    {
+                        _settings.SearchInputDelay = overloadSettings.Properties.SearchInputDelay;
+                    }
+
+                    if (_settings.SearchInputDelayFast != overloadSettings.Properties.SearchInputDelayFast)
+                    {
+                        _settings.SearchInputDelayFast = overloadSettings.Properties.SearchInputDelayFast;
+                    }
+
+                    if (_settings.SearchClickedItemWeight != overloadSettings.Properties.SearchClickedItemWeight)
+                    {
+                        _settings.SearchClickedItemWeight = overloadSettings.Properties.SearchClickedItemWeight;
+                    }
+
+                    if (_settings.SearchQueryTuningEnabled != overloadSettings.Properties.SearchQueryTuningEnabled)
+                    {
+                        _settings.SearchQueryTuningEnabled = overloadSettings.Properties.SearchQueryTuningEnabled;
+                    }
+
+                    if (_settings.SearchWaitForSlowResults != overloadSettings.Properties.SearchWaitForSlowResults)
+                    {
+                        _settings.SearchWaitForSlowResults = overloadSettings.Properties.SearchWaitForSlowResults;
+                    }
+
                     if (_settings.MaxResultsToShow != overloadSettings.Properties.MaximumNumberOfResults)
                     {
                         _settings.MaxResultsToShow = overloadSettings.Properties.MaximumNumberOfResults;
@@ -120,6 +151,11 @@ namespace PowerLauncher
                         _settings.ClearInputOnLaunch = overloadSettings.Properties.ClearInputOnLaunch;
                     }
 
+                    if (_settings.TabSelectsContextButtons != overloadSettings.Properties.TabSelectsContextButtons)
+                    {
+                        _settings.TabSelectsContextButtons = overloadSettings.Properties.TabSelectsContextButtons;
+                    }
+
                     if (_settings.Theme != overloadSettings.Properties.Theme)
                     {
                         _settings.Theme = overloadSettings.Properties.Theme;
@@ -129,6 +165,16 @@ namespace PowerLauncher
                     if (_settings.StartupPosition != overloadSettings.Properties.Position)
                     {
                         _settings.StartupPosition = overloadSettings.Properties.Position;
+                    }
+
+                    if (_settings.GenerateThumbnailsFromFiles != overloadSettings.Properties.GenerateThumbnailsFromFiles)
+                    {
+                        _settings.GenerateThumbnailsFromFiles = overloadSettings.Properties.GenerateThumbnailsFromFiles;
+                    }
+
+                    if (_settings.ShouldUsePinyin != overloadSettings.Properties.UsePinyin)
+                    {
+                        _settings.ShouldUsePinyin = overloadSettings.Properties.UsePinyin;
                     }
 
                     retry = false;
@@ -159,7 +205,7 @@ namespace PowerLauncher
                         // current file and replace it with a correct json value.
                         _settingsUtils.DeleteSettings(PowerLauncherSettings.ModuleName);
                         CreateSettingsIfNotExists();
-                        ErrorReporting.ShowMessageBox(Properties.Resources.deseralization_error_title, Properties.Resources.deseralization_error_message);
+                        ErrorReporting.ShowMessageBox(Properties.Resources.deserialization_error_title, Properties.Resources.deserialization_error_message);
                     }
                     else
                     {
@@ -180,8 +226,7 @@ namespace PowerLauncher
 
         private static string GetIcon(PluginMetadata metadata, string iconPath)
         {
-            var pluginDirectory = Path.GetFileName(metadata.PluginDirectory);
-            return Path.Combine(pluginDirectory, iconPath);
+            return Path.Combine(metadata.PluginDirectory, iconPath);
         }
 
         private static IEnumerable<PowerLauncherPluginSettings> GetDefaultPluginsSettings()
@@ -198,6 +243,7 @@ namespace PowerLauncher
                 IconPathDark = GetIcon(x.Metadata, x.Metadata.IcoPathDark),
                 IconPathLight = GetIcon(x.Metadata, x.Metadata.IcoPathLight),
                 AdditionalOptions = x.Plugin is ISettingProvider ? (x.Plugin as ISettingProvider).AdditionalOptions : new List<PluginAdditionalOption>(),
+                EnabledPolicyUiState = (int)GpoRuleConfigured.NotConfigured,
             });
         }
 
@@ -212,11 +258,13 @@ namespace PowerLauncher
                 if (defaultPlugins.ContainsKey(plugin.Id))
                 {
                     var additionalOptions = CombineAdditionalOptions(defaultPlugins[plugin.Id].AdditionalOptions, plugin.AdditionalOptions);
+                    var enabledPolicyState = GPOWrapper.GetRunPluginEnabledValue(plugin.Id);
                     plugin.Name = defaultPlugins[plugin.Id].Name;
                     plugin.Description = defaultPlugins[plugin.Id].Description;
                     plugin.Author = defaultPlugins[plugin.Id].Author;
                     plugin.IconPathDark = defaultPlugins[plugin.Id].IconPathDark;
                     plugin.IconPathLight = defaultPlugins[plugin.Id].IconPathLight;
+                    plugin.EnabledPolicyUiState = (int)enabledPolicyState;
                     defaultPlugins[plugin.Id] = plugin;
                     defaultPlugins[plugin.Id].AdditionalOptions = additionalOptions;
                 }
@@ -230,9 +278,12 @@ namespace PowerLauncher
             var defaultOptions = defaultAdditionalOptions.ToDictionary(x => x.Key);
             foreach (var option in additionalOptions)
             {
-                if (option.Key != null && defaultOptions.ContainsKey(option.Key))
+                if (option.Key != null && defaultOptions.TryGetValue(option.Key, out PluginAdditionalOption defaultOption))
                 {
-                    defaultOptions[option.Key].Value = option.Value;
+                    defaultOption.Value = option.Value;
+                    defaultOption.ComboBoxValue = option.ComboBoxValue;
+                    defaultOption.TextValue = option.TextValue;
+                    defaultOption.NumberValue = option.NumberValue;
                 }
             }
 

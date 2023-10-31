@@ -68,12 +68,24 @@ namespace PowerLauncher.Helper
         }
 
         /// <summary>
-        /// This method updates the environment of PT Run's process when called. It is called when we receive a special WindowMessage.
+        /// This method is used as a function wrapper to do the update twice. It is called when we receive a special WindowMessage.
         /// </summary>
         internal static void UpdateEnvironment()
         {
             Stopwatch.Normal("EnvironmentHelper.UpdateEnvironment - Duration cost", () =>
             {
+                // We have to do the update twice to get a correct variable set, if some variables reference other variables in their value (e.g. PATH contains %JAVA_HOME%). [https://github.com/microsoft/PowerToys/issues/26864]
+                // The cause of this is a bug in .Net which reads the variables from the Registry (HKLM/HKCU), but expands the REG_EXPAND_SZ values against the current process environment when reading the Registry value.
+                ExecuteEnvironmentUpdate();
+                ExecuteEnvironmentUpdate();
+            });
+        }
+
+        /// <summary>
+        /// This method updates the environment of PT Run's process when called.
+        /// </summary>
+        private static void ExecuteEnvironmentUpdate()
+        {
                 // Caching existing process environment and getting updated environment variables
                 IDictionary oldProcessEnvironment = GetEnvironmentVariablesWithErrorLog(EnvironmentVariableTarget.Process);
                 var newEnvironment = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -139,9 +151,7 @@ namespace PowerLauncher.Helper
                                 }
                             }
                         }
-#pragma warning disable CA1031 // Do not catch general exception types
                         catch (Exception ex)
-#pragma warning restore CA1031 // Do not catch general exception types
                         {
                             // The dotnet method "System.Environment.SetEnvironmentVariable" has it's own internal method to check the input parameters. Here we catch the exceptions that we don't check before updating the environment variable and log it to avoid crashes of PT Run.
                             Log.Exception($"Unhandled exception while updating the environment variable [{kv.Key}] for the PT Run process. (The variable value has a length of [{varValueLength}].)", ex, typeof(PowerLauncher.Helper.EnvironmentHelper));
@@ -153,7 +163,6 @@ namespace PowerLauncher.Helper
                         Log.Error($"Failed to update the environment variable [{kv.Key}] for the PT Run process. Their name is null or empty. (The variable value has a length of [{varValueLength}].)", typeof(PowerLauncher.Helper.EnvironmentHelper));
                     }
                 }
-            });
         }
 
         /// <summary>
@@ -205,7 +214,7 @@ namespace PowerLauncher.Helper
         }
 
         /// <summary>
-        /// Returns the variables for the specified target. Errors that occurs will be catched and logged.
+        /// Returns the variables for the specified target. Errors that occurs will be caught and logged.
         /// </summary>
         /// <param name="target">The target variable source of the type <see cref="EnvironmentVariableTarget"/> </param>
         /// <returns>A dictionary with the variable or an empty dictionary on errors.</returns>
@@ -215,9 +224,7 @@ namespace PowerLauncher.Helper
             {
                 return Environment.GetEnvironmentVariables(target);
             }
-#pragma warning disable CA1031 // Do not catch general exception types
             catch (Exception ex)
-#pragma warning restore CA1031 // Do not catch general exception types
             {
                 Log.Exception($"Unhandled exception while getting the environment variables for target '{target}'.", ex, typeof(PowerLauncher.Helper.EnvironmentHelper));
                 return new Hashtable();
@@ -225,9 +232,9 @@ namespace PowerLauncher.Helper
         }
 
         /// <summary>
-        /// Checks wether this process is running under the system user/account.
+        /// Checks whether this process is running under the system user/account.
         /// </summary>
-        /// <returns>A boolean value that indicates wether this process is running under system account (true) or not (false).</returns>
+        /// <returns>A boolean value that indicates whether this process is running under system account (true) or not (false).</returns>
         private static bool IsRunningAsSystem()
         {
             using (var identity = WindowsIdentity.GetCurrent())

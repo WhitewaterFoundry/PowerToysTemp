@@ -3,8 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 
 namespace Microsoft.PowerToys.PreviewHandler.Monaco
@@ -18,17 +18,22 @@ namespace Microsoft.PowerToys.PreviewHandler.Monaco
         /// <returns>The monaco language id</returns>
         public static string GetLanguage(string fileExtension)
         {
+            fileExtension = fileExtension.ToLower(CultureInfo.CurrentCulture);
             try
             {
-                JsonDocument languageListDocument = JsonDocument.Parse(File.ReadAllText(Settings.AssemblyDirectory + "\\monaco_languages.json"));
+                var languageListDocument = FilePreviewCommon.MonacoHelper.GetLanguages();
+
                 JsonElement languageList = languageListDocument.RootElement.GetProperty("list");
                 foreach (JsonElement e in languageList.EnumerateArray())
                 {
-                    for (int j = 0; j < e.GetProperty("extensions").GetArrayLength(); j++)
+                    if (e.TryGetProperty("extensions", out var extensions))
                     {
-                        if (e.GetProperty("extensions")[j].ToString() == fileExtension)
+                        for (int j = 0; j < extensions.GetArrayLength(); j++)
                         {
-                            return e.GetProperty("id").ToString();
+                            if (extensions[j].ToString() == fileExtension)
+                            {
+                                return e.GetProperty("id").ToString();
+                            }
                         }
                     }
                 }

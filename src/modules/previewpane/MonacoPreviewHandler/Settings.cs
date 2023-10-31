@@ -6,6 +6,7 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Reflection;
+using Microsoft.PowerToys.Settings.UI.Library;
 
 namespace Microsoft.PowerToys.PreviewHandler.Monaco
 {
@@ -14,26 +15,67 @@ namespace Microsoft.PowerToys.PreviewHandler.Monaco
     /// </summary>
     public class Settings
     {
-        /// <summary>
-        /// Word warping. Set by PT settings.
-        /// </summary>
-        private bool _wrap;
+        private static SettingsUtils moduleSettings = new SettingsUtils();
 
+        /// <summary>
+        /// Gets a value indicating whether word wrapping should be applied. Set by PT settings.
+        /// </summary>
         public bool Wrap
         {
-            get => _wrap;
-            set
+            get
             {
-                _wrap = value;
+                try
+                {
+                    return moduleSettings.GetSettings<PowerPreviewSettings>(PowerPreviewSettings.ModuleName).Properties.EnableMonacoPreviewWordWrap;
+                }
+                catch (FileNotFoundException)
+                {
+                    // Couldn't read the settings.
+                    // Assume default of true.
+                    return true;
+                }
             }
         }
 
         /// <summary>
-        /// Max file size for displaying (in bytes).
+        /// Gets a value indicating whether to try formatting the file. Set by PT settings.
         /// </summary>
-        private readonly long _maxFileSize = 50000;
+        public bool TryFormat
+        {
+            get
+            {
+                try
+                {
+                    return moduleSettings.GetSettings<PowerPreviewSettings>(PowerPreviewSettings.ModuleName).Properties.MonacoPreviewTryFormat;
+                }
+                catch (FileNotFoundException)
+                {
+                    // Couldn't read the settings.
+                    // Assume default of false.
+                    return false;
+                }
+            }
+        }
 
-        public long MaxFileSize => _maxFileSize;
+        /// <summary>
+        /// Gets Max file size for displaying (in bytes).
+        /// </summary>
+        public double MaxFileSize
+        {
+            get
+            {
+                try
+                {
+                    return moduleSettings.GetSettings<PowerPreviewSettings>(PowerPreviewSettings.ModuleName).Properties.MonacoPreviewMaxFileSize.Value * 1000;
+                }
+                catch (FileNotFoundException)
+                {
+                    // Couldn't read the settings.
+                    // Assume default of 50000.
+                    return 50000;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets the color of the window background.
@@ -44,7 +86,7 @@ namespace Microsoft.PowerToys.PreviewHandler.Monaco
             {
                 if (GetTheme() == "dark")
                 {
-                    return Color.DimGray;
+                    return Color.FromArgb(30, 30, 30); // #1e1e1e
                 }
                 else
                 {

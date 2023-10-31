@@ -18,9 +18,15 @@ namespace Microsoft.PowerToys.Settings.UI.Library
 
         public bool Disabled { get; set; }
 
+        // Use to communicate the state to settings UI (Using int type because we can't reference GPOWrapper.)
+        // This property should never be used inside of PT Run to get the policy state as it can be manipulated by changing the settings.json file.
+        public int EnabledPolicyUiState { get; set; }
+
         public bool IsGlobal { get; set; }
 
         public string ActionKeyword { get; set; }
+
+        public int WeightBoost { get; set; }
 
         public string IconPathDark { get; set; }
 

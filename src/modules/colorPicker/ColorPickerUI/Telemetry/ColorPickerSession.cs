@@ -2,7 +2,6 @@
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Diagnostics.Tracing;
 using Microsoft.PowerToys.Telemetry;
 using Microsoft.PowerToys.Telemetry.Events;
@@ -28,6 +27,8 @@ namespace ColorPicker.Telemetry
         public bool EditorAdjustColorOpened { get; set; }
 
         public bool EditorColorAdjusted { get; set; }
+
+        public bool EditorColorsExported { get; set; }
 
         public bool EditorSimilarColorPicked { get; set; }
 

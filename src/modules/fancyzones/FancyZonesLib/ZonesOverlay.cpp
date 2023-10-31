@@ -6,7 +6,8 @@
 #include <string>
 #include <vector>
 
-#include <common/logger/call_tracer.h>
+#include <common/logger/logger.h>
+#include <common/utils/MsWindowsSettings.h>
 
 namespace
 {
@@ -70,7 +71,7 @@ D2D1_COLOR_F ZonesOverlay::ConvertColor(COLORREF color)
 
 D2D1_RECT_F ZonesOverlay::ConvertRect(RECT rect)
 {
-    return D2D1::RectF((float)rect.left + 0.5f, (float)rect.top + 0.5f, (float)rect.right - 0.5f, (float)rect.bottom - 0.5f);
+    return D2D1::RectF(rect.left + 0.5f, rect.top + 0.5f, rect.right - 0.5f, rect.bottom - 0.5f);
 }
 
 ZonesOverlay::ZonesOverlay(HWND window)
@@ -83,7 +84,7 @@ ZonesOverlay::ZonesOverlay(HWND window)
     // Obtain the size of the drawing area.
     if (!GetClientRect(window, &m_clientRect))
     {
-        Logger::error("couldn't initialize ZonesOverlay: GetClientRect failed");
+        Logger::error(L"couldn't initialize ZonesOverlay: GetClientRect failed");
         return;
     }
 
@@ -102,7 +103,7 @@ ZonesOverlay::ZonesOverlay(HWND window)
 
     if (!SUCCEEDED(hr))
     {
-        Logger::error("couldn't initialize ZonesOverlay: CreateHwndRenderTarget failed with {}", hr);
+        Logger::error(L"couldn't initialize ZonesOverlay: CreateHwndRenderTarget failed with {}", hr);
         return;
     }
 
@@ -123,6 +124,12 @@ ZonesOverlay::RenderResult ZonesOverlay::Render()
     if (animationAlpha <= 0.f)
     {
         return RenderResult::AnimationEnded;
+    }
+
+    BOOL isEnabledAnimations = GetAnimationsEnabled();
+    if (!isEnabledAnimations)
+    {
+        animationAlpha = 1.f;
     }
 
     m_renderTarget->BeginDraw();
@@ -174,7 +181,7 @@ ZonesOverlay::RenderResult ZonesOverlay::Render()
             {
                 textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
                 textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-                m_renderTarget->DrawTextW(idStr.c_str(), (UINT32)idStr.size(), textFormat, drawableRect.rect, textBrush);
+                m_renderTarget->DrawTextW(idStr.c_str(), static_cast<UINT32>(idStr.size()), textFormat, drawableRect.rect, textBrush);
             }
 
             if (textBrush)
@@ -217,7 +224,6 @@ void ZonesOverlay::RenderLoop()
 
 void ZonesOverlay::Hide()
 {
-    _TRACER_;
     bool shouldHideWindow = true;
     {
         std::unique_lock lock(m_mutex);
@@ -234,7 +240,6 @@ void ZonesOverlay::Hide()
 
 void ZonesOverlay::Show()
 {
-    _TRACER_;
     bool shouldShowWindow = true;
     {
         std::unique_lock lock(m_mutex);
@@ -262,7 +267,6 @@ void ZonesOverlay::Show()
 
 void ZonesOverlay::Flash()
 {
-    _TRACER_;
     bool shouldShowWindow = true;
     {
         std::unique_lock lock(m_mutex);
@@ -280,12 +284,11 @@ void ZonesOverlay::Flash()
     m_cv.notify_all();
 }
 
-void ZonesOverlay::DrawActiveZoneSet(const IZoneSet::ZonesMap& zones,
+void ZonesOverlay::DrawActiveZoneSet(const ZonesMap& zones,
                                      const ZoneIndexSet& highlightZones,
                                      const Colors::ZoneColors& colors,
                                      const bool showZoneText)
 {
-    _TRACER_;
     std::unique_lock lock(m_mutex);
 
     m_sceneRects = {};
@@ -307,19 +310,14 @@ void ZonesOverlay::DrawActiveZoneSet(const IZoneSet::ZonesMap& zones,
     // First draw the inactive zones
     for (const auto& [zoneId, zone] : zones)
     {
-        if (!zone)
-        {
-            continue;
-        }
-
         if (!isHighlighted[zoneId])
         {
             DrawableRect drawableRect{
-                .rect = ConvertRect(zone->GetZoneRect()),
+                .rect = ConvertRect(zone.GetZoneRect()),
                 .borderColor = borderColor,
                 .fillColor = inactiveColor,
                 .textColor = numberColor,
-                .id = zone->Id(),
+                .id = zone.Id(),
                 .showText = showZoneText
             };
 
@@ -330,19 +328,14 @@ void ZonesOverlay::DrawActiveZoneSet(const IZoneSet::ZonesMap& zones,
     // Draw the active zones on top of the inactive zones
     for (const auto& [zoneId, zone] : zones)
     {
-        if (!zone)
-        {
-            continue;
-        }
-
         if (isHighlighted[zoneId])
         {
             DrawableRect drawableRect{
-                .rect = ConvertRect(zone->GetZoneRect()),
+                .rect = ConvertRect(zone.GetZoneRect()),
                 .borderColor = borderColor,
                 .fillColor = highlightColor,
                 .textColor = numberColor,
-                .id = zone->Id(),
+                .id = zone.Id(),
                 .showText = showZoneText
             };
 

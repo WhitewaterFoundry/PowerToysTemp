@@ -19,7 +19,7 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -70,6 +70,33 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Adapter details.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_AdapterDetails {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_AdapterDetails", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Adapter name.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_AdapterName {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_AdapterName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cable.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Cable {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Cable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Please confirm..
         /// </summary>
         internal static string Microsoft_plugin_sys_confirmation {
@@ -79,20 +106,83 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Empty Recycle Bin.
+        ///   Looks up a localized string similar to Connected.
         /// </summary>
-        internal static string Microsoft_plugin_sys_emptyrecyclebin {
+        internal static string Microsoft_plugin_sys_Connected {
             get {
-                return ResourceManager.GetString("Microsoft_plugin_sys_emptyrecyclebin", resourceCulture);
+                return ResourceManager.GetString("Microsoft_plugin_sys_Connected", resourceCulture);
             }
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Empty Recycle Bin.
+        ///   Looks up a localized string similar to Connection details.
         /// </summary>
-        internal static string Microsoft_plugin_sys_emptyrecyclebin_description {
+        internal static string Microsoft_plugin_sys_ConnectionDetails {
             get {
-                return ResourceManager.GetString("Microsoft_plugin_sys_emptyrecyclebin_description", resourceCulture);
+                return ResourceManager.GetString("Microsoft_plugin_sys_ConnectionDetails", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connection name.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_ConnectionName {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_ConnectionName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Copy details (Ctrl+C).
+        /// </summary>
+        internal static string Microsoft_plugin_sys_CopyDetails {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_CopyDetails", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DHCP servers.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Dhcp {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Dhcp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Disconnected.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Disconnected {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Disconnected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DNS servers.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Dns {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Dns", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Default Gateway.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Gateways {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Gateways", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} Gbps.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Gbps {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Gbps", resourceCulture);
             }
         }
         
@@ -124,6 +214,87 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to IPv4 address of {0}.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_ip4_description {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_ip4_description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv4 address.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Ip4Address {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Ip4Address", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv4 subnet mask.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Ip4SubnetMask {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Ip4SubnetMask", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv6 address of {0}.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_ip6_description {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_ip6_description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv6 Address.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Ip6Address {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Ip6Address", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv6 link-local address.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Ip6Link {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Ip6Link", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv6 site-local address.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Ip6Site {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Ip6Site", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv6 temporary address.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Ip6Temp {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Ip6Temp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IPv6 unique local address.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Ip6Unique {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Ip6Unique", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Lock.
         /// </summary>
         internal static string Microsoft_plugin_sys_lock {
@@ -151,6 +322,51 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Loopback.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Loopback {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Loopback", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to MAC address of {0} ({1}).
+        /// </summary>
+        internal static string Microsoft_plugin_sys_mac_description {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_mac_description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} Mbps.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Mbps {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Mbps", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mobile broadband.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_MobileBroadband {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_MobileBroadband", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Physical address (MAC).
+        /// </summary>
+        internal static string Microsoft_plugin_sys_PhysicalAddress {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_PhysicalAddress", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Executes system commands (e.g. &apos;shutdown&apos;, &apos;lock&apos;, &apos;sleep&apos;)..
         /// </summary>
         internal static string Microsoft_plugin_sys_plugin_description {
@@ -165,6 +381,123 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         internal static string Microsoft_plugin_sys_plugin_name {
             get {
                 return ResourceManager.GetString("Microsoft_plugin_sys_plugin_name", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Recycle Bin.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Empty Recycle Bin (Shift+Delete).
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_contextMenu {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_contextMenu", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Open the Recycle Bin.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_description {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Recycle Bin emptied successfully..
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_EmptySuccessMessage {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_EmptySuccessMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The task to empty the Recycle Bin is already running..
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_EmptyTaskRunning {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_EmptyTaskRunning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to empty the Recycle Bin:.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_ErrorMsg {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_ErrorMsg", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Recycle Bin is empty..
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_IsEmpty {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_IsEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Empty Recycle Bin.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_searchTag {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_searchTag", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show separate result for Empty Recycle Bin command.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_ShowEmptySeparate {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_ShowEmptySeparate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Show a success message after emptying the Recycle Bin.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBin_ShowEmptySuccessMessage {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBin_ShowEmptySuccessMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Empty Recycle Bin.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBinEmpty_description {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBinEmpty_description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Empty Recycle Bin.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBinEmptyResult {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBinEmptyResult", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Open Recycle Bin.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_RecycleBinOpen {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_RecycleBinOpen", resourceCulture);
             }
         }
         
@@ -192,6 +525,15 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         internal static string Microsoft_plugin_sys_restart_computer_description {
             get {
                 return ResourceManager.GetString("Microsoft_plugin_sys_restart_computer_description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ip; mac; address.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Search_NetworkKeywordList {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Search_NetworkKeywordList", resourceCulture);
             }
         }
         
@@ -277,6 +619,60 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Speed.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Speed {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Speed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to State.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_State {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_State", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select to copy.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_SubTitle_CopyHint {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_SubTitle_CopyHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DNS Suffix.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Suffix {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Suffix", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tunnel.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_TunnelConnection {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_TunnelConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Type.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Type {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Type", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to UEFI Firmware Settings.
         /// </summary>
         internal static string Microsoft_plugin_sys_uefi {
@@ -300,6 +696,51 @@ namespace Microsoft.PowerToys.Run.Plugin.System.Properties {
         internal static string Microsoft_plugin_sys_uefi_description {
             get {
                 return ResourceManager.GetString("Microsoft_plugin_sys_uefi_description", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unknown.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Unknown {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Unknown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to WINS servers.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_Wins {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_Wins", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Wireless LAN.
+        /// </summary>
+        internal static string Microsoft_plugin_sys_WirelessLan {
+            get {
+                return ResourceManager.GetString("Microsoft_plugin_sys_WirelessLan", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Reduce the priority of &apos;IP&apos; and &apos;MAC&apos; results to improve the order in the global results.
+        /// </summary>
+        internal static string Reduce_Network_Result_Score {
+            get {
+                return ResourceManager.GetString("Reduce_Network_Result_Score", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to With this setting enabled, you have to type more characters to find the results..
+        /// </summary>
+        internal static string Reduce_Network_Result_Score_Description {
+            get {
+                return ResourceManager.GetString("Reduce_Network_Result_Score_Description", resourceCulture);
             }
         }
         

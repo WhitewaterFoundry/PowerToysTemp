@@ -11,7 +11,7 @@ namespace PreviewPaneUnitTests
     [TestClass]
     public class HTMLParsingExtensionTest
     {
-        private static MarkdownPipeline BuidPipeline(IMarkdownExtension extension)
+        private static MarkdownPipeline BuildPipeline(IMarkdownExtension extension)
         {
             MarkdownPipelineBuilder pipelineBuilder = new MarkdownPipelineBuilder().UseAdvancedExtensions();
             pipelineBuilder.Extensions.Add(extension);
@@ -24,8 +24,8 @@ namespace PreviewPaneUnitTests
         {
             // Arrange
             string mdString = "| A | B |\n| -- | -- | ";
-            HTMLParsingExtension htmlParsingExtension = new HTMLParsingExtension(() => { });
-            MarkdownPipeline markdownPipeline = BuidPipeline(htmlParsingExtension);
+            Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension htmlParsingExtension = new Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension(() => { });
+            MarkdownPipeline markdownPipeline = BuildPipeline(htmlParsingExtension);
 
             // Act
             string html = Markdown.ToHtml(mdString, markdownPipeline);
@@ -40,8 +40,8 @@ namespace PreviewPaneUnitTests
         {
             // Arrange
             string mdString = "> Blockquotes.";
-            HTMLParsingExtension htmlParsingExtension = new HTMLParsingExtension(() => { });
-            MarkdownPipeline markdownPipeline = BuidPipeline(htmlParsingExtension);
+            Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension htmlParsingExtension = new Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension(() => { });
+            MarkdownPipeline markdownPipeline = BuildPipeline(htmlParsingExtension);
 
             // Act
             string html = Markdown.ToHtml(mdString, markdownPipeline);
@@ -56,8 +56,8 @@ namespace PreviewPaneUnitTests
         {
             // arrange
             string mdString = "![text](a.jpg \"Figure\")";
-            HTMLParsingExtension htmlParsingExtension = new HTMLParsingExtension(() => { }, "C:\\Users\\");
-            MarkdownPipeline markdownPipeline = BuidPipeline(htmlParsingExtension);
+            Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension htmlParsingExtension = new Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension(() => { }, "C:\\Users\\");
+            MarkdownPipeline markdownPipeline = BuildPipeline(htmlParsingExtension);
 
             // Act
             string html = Markdown.ToHtml(mdString, markdownPipeline);
@@ -72,8 +72,8 @@ namespace PreviewPaneUnitTests
         {
             // arrange
             string mdString = "^^^ This is a caption";
-            HTMLParsingExtension htmlParsingExtension = new HTMLParsingExtension(() => { }, "C:/Users/");
-            MarkdownPipeline markdownPipeline = BuidPipeline(htmlParsingExtension);
+            Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension htmlParsingExtension = new Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension(() => { }, "C:/Users/");
+            MarkdownPipeline markdownPipeline = BuildPipeline(htmlParsingExtension);
 
             // Act
             string html = Markdown.ToHtml(mdString, markdownPipeline);
@@ -89,8 +89,8 @@ namespace PreviewPaneUnitTests
             // arrange
             int count = 0;
             string mdString = "![text](http://dev.nodeca.com \"Figure\")";
-            HTMLParsingExtension htmlParsingExtension = new HTMLParsingExtension(() => { count++; });
-            MarkdownPipeline markdownPipeline = BuidPipeline(htmlParsingExtension);
+            Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension htmlParsingExtension = new Microsoft.PowerToys.FilePreviewCommon.HTMLParsingExtension(() => { count++; });
+            MarkdownPipeline markdownPipeline = BuildPipeline(htmlParsingExtension);
 
             // Act
             string html = Markdown.ToHtml(mdString, markdownPipeline);

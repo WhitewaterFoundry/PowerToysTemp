@@ -6,24 +6,19 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Documents;
-using System.Windows.Media;
 
 namespace PowerLauncher.Converters
 {
     public class HighlightTextConverter : IMultiValueConverter
     {
-        public object Convert(object[] value, Type targetType, object parameter, CultureInfo cultureInfo)
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-#pragma warning disable CA1062 // Validate arguments of public methods
-            var text = value[0] as string;
-#pragma warning restore CA1062 // Validate arguments of public methods
-            var highlightData = value[1] as List<int>;
-            var selected = value[2] as bool? == true;
+            var text = values[0] as string;
+            var highlightData = values[1] as List<int>;
+            var selected = values[2] as bool? == true;
 
             if (highlightData == null || !highlightData.Any())
             {
@@ -51,7 +46,7 @@ namespace PowerLauncher.Converters
             return textBlock;
         }
 
-        public object[] ConvertBack(object value, Type[] targetType, object parameter, CultureInfo culture)
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
         {
             return new[] { DependencyProperty.UnsetValue, DependencyProperty.UnsetValue };
         }

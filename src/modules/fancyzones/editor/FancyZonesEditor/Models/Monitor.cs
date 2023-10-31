@@ -14,15 +14,46 @@ namespace FancyZonesEditor.Models
     {
         public LayoutOverlayWindow Window { get; private set; }
 
-        public LayoutSettings Settings { get; set; }
-
         public Device Device { get; set; }
 
-        public Monitor(Rect bounds, Rect workArea)
+        public LayoutSettings Settings
+        {
+            get
+            {
+                if (_settings != null)
+                {
+                    return _settings;
+                }
+
+                return DefaultLayoutSettings;
+            }
+
+            set
+            {
+                _settings = value;
+            }
+        }
+
+        public bool IsInitialized
+        {
+            get
+            {
+                return _settings != null;
+            }
+        }
+
+        public MonitorConfigurationType MonitorConfigurationType
+        {
+            get
+            {
+                return Device.MonitorSize.Width > Device.MonitorSize.Height ? MonitorConfigurationType.Horizontal : MonitorConfigurationType.Vertical;
+            }
+        }
+
+        public Monitor(Rect workArea, Size monitorSize)
         {
             Window = new LayoutOverlayWindow();
-            Settings = new LayoutSettings();
-            Device = new Device(bounds, workArea);
+            Device = new Device(workArea, monitorSize);
 
             if (App.DebugMode)
             {
@@ -41,11 +72,13 @@ namespace FancyZonesEditor.Models
             Window.Height = workArea.Height;
         }
 
-        public Monitor(string id, int dpi, Rect bounds, Rect workArea)
-            : this(bounds, workArea)
+        public Monitor(string monitorName, string monitorInstanceId, string monitorSerialNumber, string virtualDesktop, int dpi, Rect workArea, Size monitorSize)
+            : this(workArea, monitorSize)
         {
-            Device = new Device(id, dpi, bounds, workArea);
+            Device = new Device(monitorName, monitorInstanceId, monitorSerialNumber, virtualDesktop, dpi, workArea, monitorSize);
         }
+
+        private LayoutSettings _settings;
 
         public void Scale(double scaleFactor)
         {
@@ -56,6 +89,49 @@ namespace FancyZonesEditor.Models
             Window.Top = workArea.Y;
             Window.Width = workArea.Width;
             Window.Height = workArea.Height;
+        }
+
+        public void SetLayoutSettings(LayoutModel model)
+        {
+            if (model == null)
+            {
+                return;
+            }
+
+            if (_settings == null)
+            {
+                _settings = new LayoutSettings();
+            }
+
+            _settings.ZonesetUuid = model.Uuid;
+            _settings.Type = model.Type;
+            _settings.SensitivityRadius = model.SensitivityRadius;
+            _settings.ZoneCount = model.TemplateZoneCount;
+
+            if (model is GridLayoutModel grid)
+            {
+                _settings.ShowSpacing = grid.ShowSpacing;
+                _settings.Spacing = grid.Spacing;
+            }
+            else
+            {
+                _settings.ShowSpacing = false;
+                _settings.Spacing = 0;
+            }
+        }
+
+        private LayoutSettings DefaultLayoutSettings
+        {
+            get
+            {
+                LayoutSettings settings = new LayoutSettings();
+                if (MonitorConfigurationType == MonitorConfigurationType.Vertical)
+                {
+                    settings.Type = LayoutType.Rows;
+                }
+
+                return settings;
+            }
         }
     }
 }

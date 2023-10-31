@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -19,6 +20,8 @@ namespace Community.PowerToys.Run.Plugin.UnitConverter
         public string Name => Properties.Resources.plugin_name;
 
         public string Description => Properties.Resources.plugin_description;
+
+        public static string PluginID => "aa0ee9daff654fb7be452c2d77c471b9";
 
         private PluginInitContext _context;
         private static string _icon_path;
@@ -61,10 +64,10 @@ namespace Community.PowerToys.Run.Plugin.UnitConverter
             return new Result
             {
                 ContextData = result,
-                Title = string.Format("{0} {1}", result.ConvertedValue, result.UnitName),
+                Title = result.ToString(null),
                 IcoPath = _icon_path,
                 Score = 300,
-                SubTitle = string.Format(Properties.Resources.copy_to_clipboard, result.QuantityType),
+                SubTitle = string.Format(CultureInfo.CurrentCulture, Properties.Resources.copy_to_clipboard, result.QuantityInfo.Name),
                 Action = c =>
                 {
                     var ret = false;
@@ -72,7 +75,7 @@ namespace Community.PowerToys.Run.Plugin.UnitConverter
                     {
                         try
                         {
-                            Clipboard.SetText(result.ConvertedValue.ToString());
+                            Clipboard.SetText(result.ConvertedValue.ToString(UnitConversionResult.Format, CultureInfo.CurrentCulture));
                             ret = true;
                         }
                         catch (ExternalException)
@@ -104,7 +107,7 @@ namespace Community.PowerToys.Run.Plugin.UnitConverter
                     {
                         try
                         {
-                            Clipboard.SetText(result.ConvertedValue.ToString());
+                            Clipboard.SetText(result.ConvertedValue.ToString(UnitConversionResult.Format, CultureInfo.CurrentCulture));
                             ret = true;
                         }
                         catch (ExternalException)

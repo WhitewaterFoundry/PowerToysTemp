@@ -1,10 +1,9 @@
-﻿// Copyright (c) Microsoft Corporation
+// Copyright (c) Microsoft Corporation
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO.Abstractions;
 using System.Linq;
@@ -13,7 +12,7 @@ using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using ManagedCommon;
-using Wox.Infrastructure.Storage;
+using Wox.Infrastructure.UserSettings;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
 
@@ -29,12 +28,9 @@ namespace Wox.Infrastructure.Image
         private static readonly ImageCache ImageCache = new ImageCache();
         private static readonly ConcurrentDictionary<string, string> GuidToKey = new ConcurrentDictionary<string, string>();
 
-        private static BinaryStorage<Dictionary<string, int>> _storage;
         private static IImageHashGenerator _hashGenerator;
 
         public static string ErrorIconPath { get; set; }
-
-        public static string DefaultIconPath { get; set; }
 
         private static readonly string[] ImageExtensions =
         {
@@ -49,13 +45,16 @@ namespace Wox.Infrastructure.Image
 
         public static void Initialize(Theme theme)
         {
-            _storage = new BinaryStorage<Dictionary<string, int>>("Image");
             _hashGenerator = new ImageHashGenerator();
-            ImageCache.SetUsageAsDictionary(_storage.TryLoad(new Dictionary<string, int>()));
 
-            foreach (var icon in new[] { Constant.DefaultIcon, Constant.ErrorIcon, Constant.LightThemedDefaultIcon, Constant.LightThemedErrorIcon })
+            foreach (var icon in new[] { Constant.ErrorIcon, Constant.LightThemedErrorIcon })
             {
-                ImageSource img = new BitmapImage(new Uri(icon));
+                BitmapImage bmi = new BitmapImage();
+                bmi.BeginInit();
+                bmi.UriSource = new Uri(icon);
+                bmi.CacheOption = BitmapCacheOption.OnLoad;
+                bmi.EndInit();
+                ImageSource img = bmi;
                 img.Freeze();
                 ImageCache[icon] = img;
             }
@@ -63,12 +62,12 @@ namespace Wox.Infrastructure.Image
             UpdateIconPath(theme);
             Task.Run(() =>
             {
-                Stopwatch.Normal("ImageLoader.Initialize - Preload images cost", () =>
+                Stopwatch.Normal("ImageLoader.Initialize - Preload images cost", async () =>
                 {
-                    ImageCache.Usage.AsParallel().ForAll(x =>
+                    foreach (var (path, _) in ImageCache.Usage)
                     {
-                        Load(x.Key);
-                    });
+                        await LoadAsync(path, true);
+                    }
                 });
 
                 Log.Info($"Number of preload images is <{ImageCache.Usage.Count}>, Images Number: {ImageCache.CacheSize()}, Unique Items {ImageCache.UniqueImagesInCache()}", MethodBase.GetCurrentMethod().DeclaringType);
@@ -78,7 +77,7 @@ namespace Wox.Infrastructure.Image
         public static void Save()
         {
             ImageCache.Cleanup();
-            _storage.Save(ImageCache.GetUsageAsDictionary());
+            ImageCache.Save();
         }
 
         // Todo : Update it with icons specific to each theme.
@@ -87,12 +86,10 @@ namespace Wox.Infrastructure.Image
             if (theme == Theme.Light || theme == Theme.HighContrastWhite)
             {
                 ErrorIconPath = Constant.LightThemedErrorIcon;
-                DefaultIconPath = Constant.LightThemedDefaultIcon;
             }
             else
             {
                 ErrorIconPath = Constant.ErrorIcon;
-                DefaultIconPath = Constant.DefaultIcon;
             }
         }
 
@@ -119,11 +116,9 @@ namespace Wox.Infrastructure.Image
             Cache,
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Suppressing this to enable FxCop. We are logging the exception, and going forward general exceptions should not be caught")]
-        private static ImageResult LoadInternal(string path, bool loadFullImage = false)
+        private static async ValueTask<ImageResult> LoadInternalAsync(string path, bool generateThumbnailsFromFiles, bool loadFullImage = false)
         {
-            ImageSource image;
-            ImageType type = ImageType.Error;
+            ImageResult imageResult;
             try
             {
                 if (string.IsNullOrEmpty(path))
@@ -144,68 +139,92 @@ namespace Wox.Infrastructure.Image
                     return new ImageResult(imageSource, ImageType.Data);
                 }
 
-                if (!Path.IsPathRooted(path))
-                {
-                    path = Path.Combine(Constant.ProgramDirectory, "Images", Path.GetFileName(path));
-                }
-
-                if (Directory.Exists(path))
-                {
-                    /* Directories can also have thumbnails instead of shell icons.
-                     * Generating thumbnails for a bunch of folders while scrolling through
-                     * results from Everything makes a big impact on performance and
-                     * Wox responsibility.
-                     * - Solution: just load the icon
-                     */
-                    type = ImageType.Folder;
-                    image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.IconOnly);
-                }
-                else if (File.Exists(path))
-                {
-#pragma warning disable CA1308 // Normalize strings to uppercase. Reason: extension is used with the enum ImageExtensions, which contains all lowercase values
-                    // Using InvariantCulture since this is internal
-                    var extension = Path.GetExtension(path).ToLower(CultureInfo.InvariantCulture);
-#pragma warning restore CA1308 // Normalize strings to uppercase
-                    if (ImageExtensions.Contains(extension))
-                    {
-                        type = ImageType.ImageFile;
-                        if (loadFullImage)
-                        {
-                            image = LoadFullImage(path);
-                        }
-                        else
-                        {
-                            /* Although the documentation for GetImage on MSDN indicates that
-                             * if a thumbnail is available it will return one, this has proved to not
-                             * be the case in many situations while testing.
-                             * - Solution: explicitly pass the ThumbnailOnly flag
-                             */
-                            image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.ThumbnailOnly);
-                        }
-                    }
-                    else
-                    {
-                        type = ImageType.File;
-                        image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.None);
-                    }
-                }
-                else
-                {
-                    image = ImageCache[ErrorIconPath];
-                    path = ErrorIconPath;
-                }
-
-                if (type != ImageType.Error)
-                {
-                    image.Freeze();
-                }
+                imageResult = await Task.Run(() => GetThumbnailResult(ref path, generateThumbnailsFromFiles, loadFullImage));
             }
             catch (System.Exception e)
             {
                 Log.Exception($"Failed to get thumbnail for {path}", e, MethodBase.GetCurrentMethod().DeclaringType);
-                type = ImageType.Error;
-                image = ImageCache[ErrorIconPath];
+                ImageSource image = ImageCache[ErrorIconPath];
                 ImageCache[path] = image;
+                imageResult = new ImageResult(image, ImageType.Error);
+            }
+
+            return imageResult;
+        }
+
+        private static ImageResult GetThumbnailResult(ref string path, bool generateThumbnailsFromFiles, bool loadFullImage = false)
+        {
+            ImageSource image;
+            ImageType type = ImageType.Error;
+
+            if (!Path.IsPathRooted(path))
+            {
+                path = Path.Combine(Constant.ProgramDirectory, "Images", Path.GetFileName(path));
+            }
+
+            if (Directory.Exists(path))
+            {
+                /* Directories can also have thumbnails instead of shell icons.
+                 * Generating thumbnails for a bunch of folders while scrolling through
+                 * results from Everything makes a big impact on performance and
+                 * Wox responsibility.
+                 * - Solution: just load the icon
+                 */
+                type = ImageType.Folder;
+                image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.IconOnly);
+            }
+            else if (File.Exists(path))
+            {
+                // Using InvariantCulture since this is internal
+                var extension = Path.GetExtension(path).ToLower(CultureInfo.InvariantCulture);
+                if (ImageExtensions.Contains(extension))
+                {
+                    type = ImageType.ImageFile;
+                    if (loadFullImage)
+                    {
+                        image = LoadFullImage(path);
+                    }
+                    else
+                    {
+                        // PowerToys Run internal images are png, so we make this exception
+                        if (extension == ".png" || generateThumbnailsFromFiles)
+                        {
+                            /* Although the documentation for GetImage on MSDN indicates that
+                            * if a thumbnail is available it will return one, this has proved to not
+                            * be the case in many situations while testing.
+                            * - Solution: explicitly pass the ThumbnailOnly flag
+                            */
+                            image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.ThumbnailOnly);
+                        }
+                        else
+                        {
+                            image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.IconOnly);
+                        }
+                    }
+                }
+                else if (!generateThumbnailsFromFiles || (extension == ".pdf" && WindowsThumbnailProvider.DoesPdfUseAcrobatAsProvider()))
+                {
+                    // The PDF thumbnail provider from Adobe Reader and Acrobat Pro lets crash PT Run with an Dispatcher exception. (https://github.com/microsoft/PowerToys/issues/18166)
+                    // To not run into the crash, we only request the icon of PDF files if the PDF thumbnail handler is set to Adobe Reader/Acrobat Pro.
+                    // Also don't get thumbnail if the GenerateThumbnailsFromFiles option is off.
+                    type = ImageType.File;
+                    image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.IconOnly);
+                }
+                else
+                {
+                    type = ImageType.File;
+                    image = WindowsThumbnailProvider.GetThumbnail(path, Constant.ThumbnailSize, Constant.ThumbnailSize, ThumbnailOptions.RESIZETOFIT);
+                }
+            }
+            else
+            {
+                image = ImageCache[ErrorIconPath];
+                path = ErrorIconPath;
+            }
+
+            if (type != ImageType.Error)
+            {
+                image.Freeze();
             }
 
             return new ImageResult(image, type);
@@ -213,9 +232,9 @@ namespace Wox.Infrastructure.Image
 
         private const bool _enableImageHash = true;
 
-        public static ImageSource Load(string path, bool loadFullImage = false)
+        public static async ValueTask<ImageSource> LoadAsync(string path, bool generateThumbnailsFromFiles, bool loadFullImage = false)
         {
-            var imageResult = LoadInternal(path, loadFullImage);
+            var imageResult = await LoadInternalAsync(path, generateThumbnailsFromFiles, loadFullImage);
 
             var img = imageResult.ImageSource;
             if (imageResult.ImageType != ImageType.Error && imageResult.ImageType != ImageType.Cache)

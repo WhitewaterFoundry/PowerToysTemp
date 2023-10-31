@@ -11,8 +11,9 @@ using System.IO.Abstractions;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using global::PowerToys.GPOWrapper;
+using ManagedCommon;
 using PowerLauncher.Properties;
-using Wox.Infrastructure;
 using Wox.Infrastructure.Storage;
 using Wox.Plugin;
 using Wox.Plugin.Logger;
@@ -135,13 +136,31 @@ namespace PowerLauncher.Plugin
         /// <summary>
         /// Call initialize for all plugins
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Suppressing this to enable FxCop. We are logging the exception, and going forward general exceptions should not be caught")]
         public static void InitializePlugins(IPublicAPI api)
         {
             API = api ?? throw new ArgumentNullException(nameof(api));
             var failedPlugins = new ConcurrentQueue<PluginPair>();
             Parallel.ForEach(AllPlugins, pair =>
             {
+                // Check policy state for the plugin and update metadata
+                var enabledPolicyState = GPOWrapper.GetRunPluginEnabledValue(pair.Metadata.ID);
+                if (enabledPolicyState == GpoRuleConfigured.Enabled)
+                {
+                    pair.Metadata.Disabled = false;
+                    pair.Metadata.IsEnabledPolicyConfigured = true;
+                    Log.Info($"The plugin <{pair.Metadata.Name}> is enabled by policy.", typeof(PluginManager));
+                }
+                else if (enabledPolicyState == GpoRuleConfigured.Disabled)
+                {
+                    pair.Metadata.Disabled = true;
+                    pair.Metadata.IsEnabledPolicyConfigured = true;
+                    Log.Info($"The plugin <{pair.Metadata.Name}> is disabled by policy.", typeof(PluginManager));
+                }
+                else if (enabledPolicyState == GpoRuleConfigured.WrongValue)
+                {
+                    Log.Warn($"Wrong policy value for enabled policy for plugin <{pair.Metadata.Name}>.", typeof(PluginManager));
+                }
+
                 if (pair.Metadata.Disabled)
                 {
                     return;
@@ -165,7 +184,6 @@ namespace PowerLauncher.Plugin
             }
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Suppressing this to enable FxCop. We are logging the exception, and going forward general exceptions should not be caught")]
         public static List<Result> QueryForPlugin(PluginPair pair, Query query, bool delayedExecution = false)
         {
             if (pair == null)
@@ -174,6 +192,11 @@ namespace PowerLauncher.Plugin
             }
 
             if (!pair.IsPluginInitialized)
+            {
+                return new List<Result>();
+            }
+
+            if (string.IsNullOrEmpty(query.ActionKeyword) && string.IsNullOrWhiteSpace(query.Search))
             {
                 return new List<Result>();
             }
@@ -207,6 +230,14 @@ namespace PowerLauncher.Plugin
 
                 metadata.QueryCount += 1;
                 metadata.AvgQueryTime = metadata.QueryCount == 1 ? milliseconds : (metadata.AvgQueryTime + milliseconds) / 2;
+
+                if (results != null)
+                {
+                    foreach (var result in results)
+                    {
+                        result.Metadata = pair.Metadata;
+                    }
+                }
 
                 return results;
             }
@@ -272,7 +303,6 @@ namespace PowerLauncher.Plugin
             return AllPlugins.Where(p => p.Plugin is T);
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Suppressing this to enable FxCop. We are logging the exception, and going forward general exceptions should not be caught")]
         public static List<ContextMenuResult> GetContextMenusForPlugin(Result result)
         {
             var pluginPair = _contextMenuPlugins.FirstOrDefault(o => o.Metadata.ID == result.PluginID);

@@ -69,16 +69,16 @@ namespace Wox.Infrastructure.Exception
             sb.AppendLine();
 
             sb.AppendLine("## Environment");
-            sb.AppendLine($"* Command Line: {Environment.CommandLine}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* Command Line: {Environment.CommandLine}");
 
             // Using InvariantCulture since this is internal
-            sb.AppendLine($"* Timestamp: {DateTime.Now.ToString(CultureInfo.InvariantCulture)}");
-            sb.AppendLine($"* Wox version: {Constant.Version}");
-            sb.AppendLine($"* OS Version: {Environment.OSVersion.VersionString}");
-            sb.AppendLine($"* IntPtr Length: {IntPtr.Size}");
-            sb.AppendLine($"* x64: {Environment.Is64BitOperatingSystem}");
-            sb.AppendLine($"* CLR Version: {Environment.Version}");
-            sb.AppendLine($"* Installed .NET Framework: ");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* Timestamp: {DateTime.Now.ToString(CultureInfo.InvariantCulture)}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* Wox version: {Constant.Version}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* OS Version: {Environment.OSVersion.VersionString}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* IntPtr Length: {IntPtr.Size}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* x64: {Environment.Is64BitOperatingSystem}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* CLR Version: {Environment.Version}");
+            sb.AppendLine(CultureInfo.InvariantCulture, $"* Installed .NET Framework: ");
             foreach (var result in GetFrameworkVersionFromRegistry())
             {
                 sb.Append("   * ");
@@ -90,24 +90,24 @@ namespace Wox.Infrastructure.Exception
             sb.AppendLine();
 
             // GlobalAssemblyCache - .NET Core and .NET 5 and later: false in all cases.
-            // Source https://docs.microsoft.com/en-us/dotnet/api/system.reflection.assembly.globalassemblycache?view=net-6.0
-            foreach (var ass in AppDomain.CurrentDomain.GetAssemblies())
+            // Source https://learn.microsoft.com/dotnet/api/system.reflection.assembly.globalassemblycache?view=net-6.0
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 sb.Append("* ");
-                sb.Append(ass.FullName);
+                sb.Append(assembly.FullName);
                 sb.Append(" (");
 
-                if (ass.IsDynamic)
+                if (assembly.IsDynamic)
                 {
                     sb.Append("dynamic assembly doesn't has location");
                 }
-                else if (string.IsNullOrEmpty(ass.Location))
+                else if (string.IsNullOrEmpty(assembly.Location))
                 {
                     sb.Append("location is null or empty");
                 }
                 else
                 {
-                    sb.Append(ass.Location);
+                    sb.Append(assembly.Location);
                 }
 
                 sb.AppendLine(")");
@@ -116,8 +116,7 @@ namespace Wox.Infrastructure.Exception
             return sb.ToString();
         }
 
-        // http://msdn.microsoft.com/en-us/library/hh925568%28v=vs.110%29.aspx
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Suppressing this to enable FxCop. We are logging the exception, and going forward general exceptions should not be caught")]
+        // http://msdn.microsoft.com/library/hh925568%28v=vs.110%29.aspx
         private static List<string> GetFrameworkVersionFromRegistry()
         {
             try

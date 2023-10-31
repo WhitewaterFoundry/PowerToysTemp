@@ -20,7 +20,7 @@ namespace PowerLauncher
 
         private ToolTip _previouslyOpenedToolTip;
 
-        // From https://docs.microsoft.com/en-us/dotnet/desktop/wpf/data/how-to-find-datatemplate-generated-elements
+        // From https://learn.microsoft.com/dotnet/desktop/wpf/data/how-to-find-datatemplate-generated-elements
         private TypeChildItem FindVisualChild<TypeChildItem>(DependencyObject obj)
     where TypeChildItem : DependencyObject
         {
@@ -80,6 +80,7 @@ namespace PowerLauncher
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1309:Use ordinal string comparison", Justification = "Using StringComparison.InvariantCulture since this is user facing")]
         private void ToolTip_Opened(object sender, RoutedEventArgs e)
         {
             if (string.Equals(sender.GetType().FullName, "System.Windows.Controls.ToolTip", System.StringComparison.InvariantCulture))
@@ -89,6 +90,7 @@ namespace PowerLauncher
             }
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1309:Use ordinal string comparison", Justification = "Using StringComparison.InvariantCulture since this is user facing")]
         private void SuggestionsListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (string.Equals(((ListView)e.OriginalSource).Name, "SuggestionsList", System.StringComparison.InvariantCulture))

@@ -91,6 +91,30 @@ namespace FancyZonesEditor.Models
             UpdateLayout();
         }
 
+        public void ScaleLayout(double workAreaWidth, double workAreaHeight)
+        {
+            if (CanvasRect.Height == 0 || CanvasRect.Width == 0)
+            {
+                return;
+            }
+
+            Int32Rect[] zones = new Int32Rect[Zones.Count];
+            Zones.CopyTo(zones, 0);
+            Zones.Clear();
+
+            foreach (Int32Rect zone in zones)
+            {
+                var x = zone.X * workAreaWidth / CanvasRect.Width;
+                var y = zone.Y * workAreaHeight / CanvasRect.Height;
+                var width = zone.Width * workAreaWidth / CanvasRect.Width;
+                var height = zone.Height * workAreaHeight / CanvasRect.Height;
+
+                Zones.Add(new Int32Rect(x: (int)x, y: (int)y, width: (int)width, height: (int)height));
+            }
+
+            CanvasRect = new Rect(CanvasRect.X, CanvasRect.Y, workAreaWidth, workAreaHeight);
+        }
+
         private void AddNewZone()
         {
             if (Zones.Count == 0)
@@ -160,6 +184,8 @@ namespace FancyZonesEditor.Models
 
         public void RestoreTo(CanvasLayoutModel other)
         {
+            base.RestoreTo(other);
+
             other.Zones.Clear();
             foreach (Int32Rect zone in Zones)
             {
@@ -167,7 +193,6 @@ namespace FancyZonesEditor.Models
             }
 
             other._topLeft = _topLeft;
-            other.SensitivityRadius = SensitivityRadius;
             other.CanvasRect = CanvasRect;
             other.UpdateLayout();
         }

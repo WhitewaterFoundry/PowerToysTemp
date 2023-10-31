@@ -13,6 +13,8 @@ using System.Linq;
 using System.Reflection;
 using System.Windows.Input;
 using ManagedCommon;
+using Microsoft.Plugin.Shell.Properties;
+using Microsoft.PowerToys.Settings.UI.Library;
 using Wox.Infrastructure.Storage;
 using Wox.Plugin;
 using Wox.Plugin.Common;
@@ -21,7 +23,7 @@ using Control = System.Windows.Controls.Control;
 
 namespace Microsoft.Plugin.Shell
 {
-    public class Main : IPlugin, IPluginI18n, IContextMenu, ISavable
+    public class Main : IPlugin, IPluginI18n, ISettingProvider, IContextMenu, ISavable
     {
         private static readonly IFileSystem FileSystem = new FileSystem();
         private static readonly IPath Path = FileSystem.Path;
@@ -37,6 +39,37 @@ namespace Microsoft.Plugin.Shell
 
         public string Description => Properties.Resources.wox_plugin_cmd_plugin_description;
 
+        public static string PluginID => "D409510CD0D2481F853690A07E6DC426";
+
+        public IEnumerable<PluginAdditionalOption> AdditionalOptions => new List<PluginAdditionalOption>()
+        {
+            new PluginAdditionalOption()
+            {
+                Key = "ShellCommandExecution",
+                DisplayLabel = Resources.wox_shell_command_execution,
+                DisplayDescription = Resources.wox_shell_command_execution_description,
+                PluginOptionType = PluginAdditionalOption.AdditionalOptionType.Combobox,
+                ComboBoxItems = new List<KeyValuePair<string, string>>
+                {
+                    new KeyValuePair<string, string>(Resources.find_executable_file_and_run_it, "2"),
+                    new KeyValuePair<string, string>(Resources.run_command_in_command_prompt, "0"),
+                    new KeyValuePair<string, string>(Resources.run_command_in_powershell, "1"),
+                    new KeyValuePair<string, string>(Resources.run_command_in_powershell_seven, "6"),
+                    new KeyValuePair<string, string>(Resources.run_command_in_windows_terminal_cmd, "5"),
+                    new KeyValuePair<string, string>(Resources.run_command_in_windows_terminal_powershell, "3"),
+                    new KeyValuePair<string, string>(Resources.run_command_in_windows_terminal_powershell_seven, "4"),
+                },
+                ComboBoxValue = (int)_settings.Shell,
+            },
+
+            new PluginAdditionalOption()
+            {
+                Key = "LeaveShellOpen",
+                DisplayLabel = Resources.wox_leave_shell_open,
+                Value = _settings.LeaveShellOpen,
+            },
+        };
+
         private PluginInitContext _context;
 
         public Main()
@@ -50,7 +83,6 @@ namespace Microsoft.Plugin.Shell
             _storage.Save();
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Keeping the process alive, but logging the exception")]
         public List<Result> Query(Query query)
         {
             if (query == null)
@@ -153,19 +185,29 @@ namespace Microsoft.Plugin.Shell
             return history.ToList();
         }
 
-        private ProcessStartInfo PrepareProcessStartInfo(string command, bool runAsAdministrator = false)
+        private ProcessStartInfo PrepareProcessStartInfo(string command, RunAsType runAs = RunAsType.None)
         {
             string trimmedCommand = command.Trim();
             command = Environment.ExpandEnvironmentVariables(trimmedCommand);
             var workingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            var runAsAdministratorArg = !runAsAdministrator && !_settings.RunAsAdministrator ? string.Empty : "runas";
+
+            // Set runAsArg
+            string runAsVerbArg = string.Empty;
+            if (runAs == RunAsType.OtherUser)
+            {
+                runAsVerbArg = "runAsUser";
+            }
+            else if (runAs == RunAsType.Administrator || _settings.RunAsAdministrator)
+            {
+                runAsVerbArg = "runAs";
+            }
 
             ProcessStartInfo info;
             if (_settings.Shell == ExecutionShell.Cmd)
             {
                 var arguments = _settings.LeaveShellOpen ? $"/k \"{command}\"" : $"/c \"{command}\" & pause";
 
-                info = ShellCommand.SetProcessStartInfo("cmd.exe", workingDirectory, arguments, runAsAdministratorArg);
+                info = ShellCommand.SetProcessStartInfo("cmd.exe", workingDirectory, arguments, runAsVerbArg);
             }
             else if (_settings.Shell == ExecutionShell.Powershell)
             {
@@ -176,17 +218,73 @@ namespace Microsoft.Plugin.Shell
                 }
                 else
                 {
-                    arguments = $"\"{command} ; Read-Host -Prompt \\\"Press Enter to continue\\\"\"";
+                    arguments = $"\"{command} ; Read-Host -Prompt \\\"{Resources.run_plugin_cmd_wait_message}\\\"\"";
                 }
 
-                info = ShellCommand.SetProcessStartInfo("powershell.exe", workingDirectory, arguments, runAsAdministratorArg);
+                info = ShellCommand.SetProcessStartInfo("powershell.exe", workingDirectory, arguments, runAsVerbArg);
+            }
+            else if (_settings.Shell == ExecutionShell.PowerShellSeven)
+            {
+                string arguments;
+                if (_settings.LeaveShellOpen)
+                {
+                    arguments = $"-NoExit -C \"{command}\"";
+                }
+                else
+                {
+                    arguments = $"-C \"{command} ; Read-Host -Prompt \\\"{Resources.run_plugin_cmd_wait_message}\\\"\"";
+                }
+
+                info = ShellCommand.SetProcessStartInfo("pwsh.exe", workingDirectory, arguments, runAsVerbArg);
+            }
+            else if (_settings.Shell == ExecutionShell.WindowsTerminalCmd)
+            {
+                string arguments;
+                if (_settings.LeaveShellOpen)
+                {
+                    arguments = $"cmd.exe /k \"{command}\"";
+                }
+                else
+                {
+                    arguments = $"cmd.exe /c \"{command}\" & pause";
+                }
+
+                info = ShellCommand.SetProcessStartInfo("wt.exe", workingDirectory, arguments, runAsVerbArg);
+            }
+            else if (_settings.Shell == ExecutionShell.WindowsTerminalPowerShell)
+            {
+                string arguments;
+                if (_settings.LeaveShellOpen)
+                {
+                    arguments = $"powershell -NoExit -C \"{command}\"";
+                }
+                else
+                {
+                    arguments = $"powershell -C \"{command}\"";
+                }
+
+                info = ShellCommand.SetProcessStartInfo("wt.exe", workingDirectory, arguments, runAsVerbArg);
+            }
+            else if (_settings.Shell == ExecutionShell.WindowsTerminalPowerShellSeven)
+            {
+                string arguments;
+                if (_settings.LeaveShellOpen)
+                {
+                    arguments = $"pwsh.exe -NoExit -C \"{command}\"";
+                }
+                else
+                {
+                    arguments = $"pwsh.exe -C \"{command}\"";
+                }
+
+                info = ShellCommand.SetProcessStartInfo("wt.exe", workingDirectory, arguments, runAsVerbArg);
             }
             else if (_settings.Shell == ExecutionShell.RunCommand)
             {
                 // Open explorer if the path is a file or directory
                 if (Directory.Exists(command) || File.Exists(command))
                 {
-                    info = ShellCommand.SetProcessStartInfo("explorer.exe", arguments: command, verb: runAsAdministratorArg);
+                    info = ShellCommand.SetProcessStartInfo("explorer.exe", arguments: command, verb: runAsVerbArg);
                 }
                 else
                 {
@@ -197,16 +295,40 @@ namespace Microsoft.Plugin.Shell
                         if (ExistInPath(filename))
                         {
                             var arguments = parts[1];
-                            info = ShellCommand.SetProcessStartInfo(filename, workingDirectory, arguments, runAsAdministratorArg);
+                            if (_settings.LeaveShellOpen)
+                            {
+                                // Wrap the command in a cmd.exe process
+                                info = ShellCommand.SetProcessStartInfo("cmd.exe", workingDirectory, $"/k \"{filename} {arguments}\"", runAsVerbArg);
+                            }
+                            else
+                            {
+                                info = ShellCommand.SetProcessStartInfo(filename, workingDirectory, arguments, runAsVerbArg);
+                            }
                         }
                         else
                         {
-                            info = ShellCommand.SetProcessStartInfo(command, verb: runAsAdministratorArg);
+                            if (_settings.LeaveShellOpen)
+                            {
+                                // Wrap the command in a cmd.exe process
+                                info = ShellCommand.SetProcessStartInfo("cmd.exe", workingDirectory, $"/k \"{command}\"", runAsVerbArg);
+                            }
+                            else
+                            {
+                                info = ShellCommand.SetProcessStartInfo(command, verb: runAsVerbArg);
+                            }
                         }
                     }
                     else
                     {
-                        info = ShellCommand.SetProcessStartInfo(command, verb: runAsAdministratorArg);
+                        if (_settings.LeaveShellOpen)
+                        {
+                            // Wrap the command in a cmd.exe process
+                            info = ShellCommand.SetProcessStartInfo("cmd.exe", workingDirectory, $"/k \"{command}\"", runAsVerbArg);
+                        }
+                        else
+                        {
+                            info = ShellCommand.SetProcessStartInfo(command, verb: runAsVerbArg);
+                        }
                     }
                 }
             }
@@ -220,6 +342,13 @@ namespace Microsoft.Plugin.Shell
             _settings.AddCmdHistory(trimmedCommand);
 
             return info;
+        }
+
+        private enum RunAsType
+        {
+            None,
+            Administrator,
+            OtherUser,
         }
 
         private void Execute(Func<ProcessStartInfo, Process> startProcess, ProcessStartInfo info)
@@ -326,13 +455,46 @@ namespace Microsoft.Plugin.Shell
                     AcceleratorModifiers = ModifierKeys.Control | ModifierKeys.Shift,
                     Action = c =>
                     {
-                        Execute(Process.Start, PrepareProcessStartInfo(selectedResult.Title, true));
+                        Execute(Process.Start, PrepareProcessStartInfo(selectedResult.Title, RunAsType.Administrator));
+                        return true;
+                    },
+                },
+                new ContextMenuResult
+                {
+                    PluginName = Assembly.GetExecutingAssembly().GetName().Name,
+                    Title = Properties.Resources.wox_plugin_cmd_run_as_user,
+                    Glyph = "\xE7EE",
+                    FontFamily = "Segoe MDL2 Assets",
+                    AcceleratorKey = Key.U,
+                    AcceleratorModifiers = ModifierKeys.Control | ModifierKeys.Shift,
+                    Action = _ =>
+                    {
+                        Execute(Process.Start, PrepareProcessStartInfo(selectedResult.Title, RunAsType.OtherUser));
                         return true;
                     },
                 },
             };
 
             return resultlist;
+        }
+
+        public void UpdateSettings(PowerLauncherPluginSettings settings)
+        {
+            var leaveShellOpen = false;
+            var shellOption = 2;
+
+            if (settings != null && settings.AdditionalOptions != null)
+            {
+                var optionLeaveShellOpen = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "LeaveShellOpen");
+                leaveShellOpen = optionLeaveShellOpen?.Value ?? leaveShellOpen;
+                _settings.LeaveShellOpen = leaveShellOpen;
+
+                var optionShell = settings.AdditionalOptions.FirstOrDefault(x => x.Key == "ShellCommandExecution");
+                shellOption = optionShell?.ComboBoxValue ?? shellOption;
+                _settings.Shell = (ExecutionShell)shellOption;
+            }
+
+            Save();
         }
     }
 }

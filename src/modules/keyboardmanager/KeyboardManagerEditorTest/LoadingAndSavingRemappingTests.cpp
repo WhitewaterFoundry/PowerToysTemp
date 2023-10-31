@@ -1,5 +1,11 @@
 #include "pch.h"
+
+// Suppressing 26466 - Don't use static_cast downcasts - in CppUnitTest.h
+#pragma warning(push)
+#pragma warning(disable : 26466)
 #include "CppUnitTest.h"
+#pragma warning(pop)
+
 #include <keyboardmanager/common/MappingConfiguration.h>
 #include <keyboardmanager/KeyboardManagerEditorLibrary/LoadingAndSavingRemappingHelper.h>
 #include <common/interop/shared_constants.h>
@@ -12,7 +18,7 @@ namespace RemappingUITests
     // Tests for methods in the LoadingAndSavingRemappingHelper namespace
     TEST_CLASS (LoadingAndSavingRemappingTests)
     {
-        std::wstring testApp1 = L"testtrocess1.exe";
+        std::wstring testApp1 = L"testprocess1.exe";
         std::wstring testApp2 = L"testprocess2.exe";
 
     public:

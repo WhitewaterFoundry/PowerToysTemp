@@ -9,7 +9,7 @@
 #include <shellapi.h>
 #include <common/utils/logger_helper.h>
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
+BOOL APIENTRY DllMain(HMODULE /*hModule*/, DWORD ul_reason_for_call, LPVOID /*lpReserved*/)
 {
     switch (ul_reason_for_call)
     {
@@ -23,6 +23,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         Trace::UnregisterProvider();
         break;
     }
+
     return TRUE;
 }
 
@@ -40,12 +41,13 @@ private:
     std::wstring app_key = KeyboardManagerConstants::ModuleName;
 
     HANDLE m_hProcess = nullptr;
+
 public:
     // Constructor
     KeyboardManager()
     {
         LoggerHelpers::init_logger(KeyboardManagerConstants::ModuleName, L"ModuleInterface", LogSettings::keyboardManagerLoggerName);
-        
+
         std::filesystem::path oldLogPath(PTSettingsHelper::get_module_save_folder_location(app_key));
         oldLogPath.append("Logs");
         LoggerHelpers::delete_old_log_folder(oldLogPath);
@@ -69,6 +71,12 @@ public:
         return app_key.c_str();
     }
 
+    // Return the configured status for the gpo policy for the module
+    virtual powertoys_gpo::gpo_rule_configured_t gpo_policy_enabled_configuration() override
+    {
+        return powertoys_gpo::getConfiguredKeyboardManagerEnabledValue();
+    }
+
     // Return JSON with the configuration options.
     virtual bool get_config(wchar_t* buffer, int* buffer_size) override
     {
@@ -83,7 +91,7 @@ public:
     }
 
     // Signal from the Settings editor to call a custom action.
-    virtual void call_custom_action(const wchar_t* action) override
+    virtual void call_custom_action(const wchar_t* /*action*/) override
     {
     }
 
@@ -112,14 +120,14 @@ public:
         m_enabled = true;
         // Log telemetry
         Trace::EnableKeyboardManager(true);
-        
+
         unsigned long powertoys_pid = GetCurrentProcessId();
         std::wstring executable_args = L"";
         executable_args.append(std::to_wstring(powertoys_pid));
 
         SHELLEXECUTEINFOW sei{ sizeof(sei) };
         sei.fMask = { SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI };
-        sei.lpFile = L"modules\\KeyboardManager\\KeyboardManagerEngine\\PowerToys.KeyboardManagerEngine.exe";
+        sei.lpFile = L"KeyboardManagerEngine\\PowerToys.KeyboardManagerEngine.exe";
         sei.nShow = SW_SHOWNORMAL;
         sei.lpParameters = executable_args.data();
         if (ShellExecuteExW(&sei) == false)
@@ -160,6 +168,13 @@ public:
     {
         return m_enabled;
     }
+
+    // Returns whether the PowerToys should be enabled by default
+    virtual bool is_enabled_by_default() const override
+    {
+        return false;
+    }
+
 };
 
 extern "C" __declspec(dllexport) PowertoyModuleIface* __cdecl powertoy_create()

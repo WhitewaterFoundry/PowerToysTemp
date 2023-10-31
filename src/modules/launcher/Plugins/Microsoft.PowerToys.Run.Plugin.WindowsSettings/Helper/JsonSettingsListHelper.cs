@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -40,7 +39,7 @@ namespace Microsoft.PowerToys.Run.Plugin.WindowsSettings.Helper
                 using var stream = assembly.GetManifestResourceStream(resourceName);
                 if (stream is null)
                 {
-                    throw new Exception("stream is null");
+                    throw new ArgumentNullException(nameof(stream), "stream is null");
                 }
 
                 var options = new JsonSerializerOptions();

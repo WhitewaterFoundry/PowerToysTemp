@@ -2,7 +2,6 @@
 - [ ] The plugin is a project under `modules\launcher\Plugins`
 - [ ] Microsoft plugin project name pattern: `Microsoft.PowerToys.Run.Plugin.{PluginName}`
 - [ ] Community plugin project name pattern: `Community.PowerToys.Run.Plugin.{PluginName}`
-- [ ] [`GlobalSuppressions.cs`](/src/codeAnalysis/GlobalSuppressions.cs) and [`StyleCop.json`](/src/codeAnalysis/StyleCop.json) have to be included in the plugin project so it follows PowerToys code guidelines
 - [ ] The project file should import `Version.props` and specify `<Version>$(Version).0</Version>`
 - [ ] Make sure `*.csproj` specify only x64 platform target
 - [ ] The plugin has to contain a `plugin.json` file of the following format in its root folder
@@ -20,6 +19,10 @@
   "IcoPathDark": string, // Path to dark theme icon. The path is relative to the root plugin folder 
   "IcoPathLight": string // Path to light theme icon. The path is relative to the root plugin folder 
 }
+```
+- [ ] Make sure your `Main` class contains a public, static string property for the `PluginID`. The plugin id has to be the same as the one in the `plugin.json`file.
+```csharp
+public static string PluginID => "xxxxxxx"; // The part xxxxxxx stands for the plugin ID.
 ```
 - [ ] Do not use plugin name or PowerToys as prefixes for entities inside of the plugin project
 - [ ] The plugin has to have Unit tests. Use MSTest framework

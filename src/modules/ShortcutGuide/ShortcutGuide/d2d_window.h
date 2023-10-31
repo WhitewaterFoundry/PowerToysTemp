@@ -31,7 +31,7 @@ protected:
     virtual void init() = 0;
     // resize - when called, window_width and window_height will have current window size
     virtual void resize() = 0;
-    // render - called on WM_PAIT, BeginPaint/EndPaint is handled by D2DWindow
+    // render - called on WM_PAINT, BeginPaint/EndPaint is handled by D2DWindow
     virtual void render(ID2D1DeviceContext5* d2d_dc) = 0;
     // on_show, on_hide - called when the window is about to be shown or about to be hidden
     virtual void on_show() = 0;
@@ -49,7 +49,8 @@ protected:
     bool hidden = true;
     bool initialized = false;
     HWND hwnd;
-    UINT window_width, window_height;
+    UINT window_width{};
+    UINT window_height{};
     winrt::com_ptr<ID3D11Device> d3d_device;
     winrt::com_ptr<IDXGIDevice> dxgi_device;
     winrt::com_ptr<IDXGIFactory2> dxgi_factory;

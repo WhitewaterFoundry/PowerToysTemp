@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Microsoft.PowerToys.Run.Plugin.WindowsSettings.Properties;
@@ -44,7 +45,18 @@ namespace Microsoft.PowerToys.Run.Plugin.WindowsSettings.Helper
 
                 AddOptionalToolTip(entry, result);
 
-                resultList.Add(result);
+                // There is a case with MMC snap-ins where we don't have .msc files fort them. Then we need to show the note for this results in subtitle too.
+                // These results have mmc.exe as command and their note property is filled.
+                if (entry.Command == "mmc.exe" && !string.IsNullOrEmpty(entry.Note))
+                {
+                    result.SubTitle = result.SubTitle + $"\u0020\u0020\u002D\u0020\u0020{Resources.Note}: {entry.Note}"; // "\u0020\u0020\u002D\u0020\u0020" = "<space><space><minus><space><space>"
+                }
+
+                // To not show duplicate entries we check the existing results on the list before adding the new entry. Example: Device Manager entry for Control Panel and Device Manager entry for MMC.
+                if (!resultList.Any(x => x.Title == result.Title))
+                {
+                    resultList.Add(result);
+                }
             }
 
             SetScores(resultList, query);
@@ -55,33 +67,33 @@ namespace Microsoft.PowerToys.Run.Plugin.WindowsSettings.Helper
         /// <summary>
         /// Add a tool-tip to the given <see cref="Result"/>, based o the given <see cref="IWindowsSetting"/>.
         /// </summary>
-        /// <param name="entry">The <see cref="WindowsSetting"/> that contain informations for the tool-tip.</param>
+        /// <param name="entry">The <see cref="WindowsSetting"/> that contains information for the tool-tip.</param>
         /// <param name="result">The <see cref="Result"/> that need a tool-tip.</param>
         private static void AddOptionalToolTip(WindowsSetting entry, Result result)
         {
             var toolTipText = new StringBuilder();
 
-            toolTipText.AppendLine($"{Resources.Application}: {entry.Type}");
+            toolTipText.AppendLine(CultureInfo.CurrentCulture, $"{Resources.Application}: {entry.Type}");
 
             if (entry.Areas != null && entry.Areas.Any())
             {
-                toolTipText.AppendLine($"{Resources.Area}: {entry.JoinedAreaPath}");
+                toolTipText.AppendLine(CultureInfo.CurrentCulture, $"{Resources.Area}: {entry.JoinedAreaPath}");
             }
 
             if (entry.AltNames != null && entry.AltNames.Any())
             {
                 var altList = entry.AltNames.Aggregate((current, next) => $"{current}, {next}");
 
-                toolTipText.AppendLine($"{Resources.AlternativeName}: {altList}");
+                toolTipText.AppendLine(CultureInfo.CurrentCulture, $"{Resources.AlternativeName}: {altList}");
             }
 
-            toolTipText.Append($"{Resources.Command}: {entry.Command}");
+            toolTipText.Append(CultureInfo.CurrentCulture, $"{Resources.Command}: {entry.Command}");
 
             if (!string.IsNullOrEmpty(entry.Note))
             {
                 toolTipText.AppendLine(string.Empty);
                 toolTipText.AppendLine(string.Empty);
-                toolTipText.Append($"{Resources.Note}: {entry.Note}");
+                toolTipText.Append(CultureInfo.CurrentCulture, $"{Resources.Note}: {entry.Note}");
             }
 
             result.ToolTipData = new ToolTipData(entry.Name, toolTipText.ToString());

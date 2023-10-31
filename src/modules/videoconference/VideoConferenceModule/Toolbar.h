@@ -6,6 +6,8 @@
 
 #include <common/Display/monitors.h>
 
+#include "AudioDeviceNotificationClient.h"
+
 struct ToolbarImages
 {
     Gdiplus::Image* camOnMicOn = nullptr;
@@ -33,7 +35,7 @@ public:
     void setMicrophoneMute(bool mute);
 
     void setTheme(std::wstring theme);
-    void setHideToolbarWhenUnmuted(bool hide);
+    void setToolbarHide(std::wstring hide);
 
 private:
     static LRESULT CALLBACK WindowProcessMessages(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
@@ -43,6 +45,7 @@ private:
 
     ToolbarImages darkImages;
     ToolbarImages lightImages;
+    AudioDeviceNotificationClient audioConfChangesNotifier;
 
     bool cameraMuted = false;
     bool cameraInUse = false;
@@ -51,11 +54,11 @@ private:
 
     std::wstring theme = L"system";
 
-    bool HideToolbarWhenUnmuted = true;
+    std::wstring ToolbarHide = L"When both camera and microphone are unmuted";
 
-    uint64_t lastTimeCamOrMicMuteStateChanged;
+    uint64_t lastTimeCamOrMicMuteStateChanged{};
 
     std::atomic_bool moduleSettingsUpdateScheduled = false;
     std::atomic_bool generalSettingsUpdateScheduled = false;
-    UINT_PTR nTimerId;
+    UINT_PTR nTimerId{};
 };

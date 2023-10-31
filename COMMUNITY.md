@@ -7,10 +7,16 @@ Names are in alphabetical order based on first name.
 ## High impact community members
 
 ### [@Aaron-Junker](https://github.com/Aaron-Junker) - [Aaron Junker](https://aaron-junker.github.io)
-Aaron has helped triaging, discussing, and creating a substantial number of issues and contributed features/fixes as well as work on an upcoming utility.
+Aaron has helped triaging, discussing, and creating a substantial number of issues and contributed features/fixes. Aaron was the primary person for helping build the File Explorer preview pane handler for developer files.
+
+### [@CleanCodeDeveloper](https://github.com/CleanCodeDeveloper)
+CleanCodeDeveloper helped do massive amounts of code stability and image resizer work.
+
+### [@damienleroy](https://github.com/damienleroy) - [Damien Leroy](https://www.linkedin.com/in/Damien-Leroy-b2734416a/)
+Damien has helped out by developing and contributing the Quick Accent utility.
 
 ### [@davidegiacometti](https://github.com/davidegiacometti) - [Davide Giacometti](https://www.linkedin.com/in/davidegiacometti/)
-Davide has helped fix multiple bugs, added new features, as well as help us with the ARM64 effort by porting applications to .NET Core.
+Davide has helped fix multiple bugs, added new utilities, features, as well as help us with the ARM64 effort by porting applications to .NET Core.
 
 ### [@franky920920](https://github.com/franky920920) - [Franky Chen](https://frankychen.net)
 Franky has helped triaging, discussing, and creating a substantial number of issues and contributed features/fixes to PowerToys.
@@ -21,12 +27,18 @@ Heiko has helped triaging, discussing, and creating a substantial number of issu
 ### [@Jay-o-Way](https://github.com/Jay-o-Way) - Jay
 Jay has helped triaging, discussing, creating a substantial number of issues and PRs.
 
+### [@TheJoeFin](https://github.com/TheJoeFin) - [Joe Finney](https://joefinapps.com)
+Joe has helped triaging, discussing, issues as well as fixing bugs and building features for Text Extractor.
+
 ### [@jsoref](https://github.com/jsoref) - [Josh Soref](https://check-spelling.dev/)
 Helping keep our spelling correct :)
 
-### [@Niels9001](https://github.com/niels9001/) - [Niels Laute](https://nielslaute.com/)
+### [@martinchrzan](https://github.com/martinchrzan/) - Martin Chrzan
 
-Niels has helped drive large sums of our update toward a new [consistent and modern UX](https://github.com/microsoft/PowerToys/issues/891). This includes the [launcher work](https://github.com/microsoft/PowerToys/issues/44), color picker UX update and [icon design](https://github.com/microsoft/PowerToys/issues/1118).
+Color Picker is from Martin.
+
+### [@mikeclayton](https://github.com/mikeclayton) - [Michael Clayton](https://michael-clayton.com)
+Michael contributed the [initial version](https://github.com/microsoft/PowerToys/issues/23216) of the Mouse Jump tool and [a number of updates](https://github.com/microsoft/PowerToys/pulls?q=is%3Apr+author%3Amikeclayton) based on his FancyMouse utility.
 
 ### [@riverar](https://github.com/riverar) - [Rafael Rivera](https://withinrafael.com/)
 
@@ -34,6 +46,9 @@ Rafael has helped do the [upgrade from CppWinRT 1.x to 2.0](https://github.com/m
 
 ### [@royvou](https://github.com/royvou)
 Roy has helped out contributing multiple features to PowerToys Run
+
+### [@snickler](https://github.com/snickler) - [Jeremy Sinclair](http://sinclairinat0r.com)
+Jeremy has helped drive large sums of the ARM64 support inside PowerToys
 
 ### [@TobiasSekan](https://github.com/TobiasSekan) - Tobias Sekan
 Tobias Sekan has helped out contributing features to PowerToys Run such as Settings plugin, Registry plugin
@@ -53,6 +68,9 @@ Their fork of Wox was the base of PowerToys Run.
 
 Initial base of jjw24's fork, which makes it the base of PowerToys Run.
 
+### [Text-Grab](https://github.com/TheJoeFin/Text-Grab) - Joseph Finney
+Joe helped develop and contribute to the Text Extractor utility.  It is directly based on his Text Grab application.
+
 ## Microsoft community members
 
 We would like to also directly call out some extremely helpful Microsoft employees that have directly contributed to PowerToys. This isn't their day job and was work they did out of passion. We want to say thank you and recognize your work.
@@ -71,20 +89,74 @@ Image Resizer is from Brice.
 
 ### [@chrdavis](https://github.com/chrdavis/) - Chris Davis
 
-PowerRename is from Chris's SmartRename and icon rendering for SVGs in File Explorer
+PowerRename is from Chris's SmartRename and icon rendering for SVGs in File Explorer.
 
 ### [@dend](https://github.com/dend/) - Den Delimarsky
 
 PowerToys Awake is a tool to keep your computer awake.
 
-### [@martinchrzan](https://github.com/martinchrzan/) - Martin Chrzan
+### [@Niels9001](https://github.com/niels9001/) - [Niels Laute](https://nielslaute.com/)
 
-Color Picker is from Martin.
+Niels has helped drive large sums of our update toward a new [consistent and modern UX](https://github.com/microsoft/PowerToys/issues/891). This includes the [launcher work](https://github.com/microsoft/PowerToys/issues/44), color picker UX update and [icon design](https://github.com/microsoft/PowerToys/issues/1118).
+
+### [@randyrants](https://github.com/randyrants) - [Randy Santossio](https://www.randyrants.com)
+
+Randy contributed Registry Preview and some very early conversations about keyboard remapping.
 
 ### [@oldnewthing](https://github.com/oldnewthing) - Raymond Chen
 
 Find My Mouse is based on Raymond Chen's SuperSonar.
 
+### [@robmikh](https://github.com/robmikh) - Robert Mikhayelyan
+
+Crop And Lock is based on the original work of Robert Mikhayelyan, with Program Manager support from [@kevinguo305](https://github.com/kevinguo305) - Kevin Guo.
+
 ### Microsoft InVEST team
 
 This amazing team helped PowerToys develop PowerToys Run and Keyboard manager as well as update our Settings to v2.  @alekhyareddy28, @arjunbalgovind, @jyuwono @laviusmotileng-ms, @ryanbodrug-microsoft, @saahmedm, @somil55, @traies, @udit3333
+
+## Mouse Without Borders original contributors
+*Project creator: Truong Do (Đỗ Đức Trường)*
+
+Other contributors:
+  * Microsoft Garage: Quinn Hawkins, Michael Low, Joe Coplen, Nino Yuniardi, Gwyneth Marshall, David Andrews, Karen Luecking
+  * Peter Hauge - Visual Studio
+  * Bruce Dawson - Windows Fundamentals
+  * Alan Myrvold - Office Security
+  * Adrian Garside - WEX
+  * Scott Bradner - Surface
+  * Aleks Gershaft - Windows Azure
+  * Chinh Huynh - Windows Azure
+  * Long Nguyen - Data Center
+  * Triet Le - Cloud Engineering
+  * Luke Schoen - Excel
+  * Bao Nguyen - Bing
+  * Ross Nichols - Windows
+  * Ryan Baltazar - Windows
+  * Ed Essey - The Garage
+  * Mario Madden - The Garage
+  * Karthick Mahalingam - ACE
+  * Pooja Kamra - ACE
+  * Justin White - SA
+  * Chris Ransom - SA
+  * Mike Ricks - Red Team
+  * Randy Santossio - Surface
+  * Ashish Sen Jaswal - Device Health
+  * Zoltan Harmath - Security Tools
+  * Luciano Krigun - Security Products
+  * Jo Hemmerlein - Red Team
+  * Chris Johnson - Surface Hub
+  * Loren Ponten - Surface Hub
+  * Paul Schmitt - WWL
+  * And many other Users!
+
+## PowerToys core team
+
+- [@crutkas](https://github.com/crutkas/) - Clint Rutkas - Lead
+- [@cinnamon-msft](https://github.com/cinnamon-msft) - Kayla Cinnamon - Product Manager
+- [@jaimecbernardo](https://github.com/jaimecbernardo) - Jaime Bernardo - Dev lead
+- [@donlaci](https://github.com/donlaci) - Laszlo Nemeth - Dev
+- [@gokcekantarci](https://github.com/gokcekantarci) - Gokce Kantarci - Dev
+- [@SeraphimaZykova](https://github.com/SeraphimaZykova) - Seraphima Zykova - Dev
+- [@stefansjfw](https://github.com/stefansjfw) - Stefan Markovic - Dev
+- [@yuyoyuppe](https://github.com/yuyoyuppe) - Andrey Nekrasov - Dev

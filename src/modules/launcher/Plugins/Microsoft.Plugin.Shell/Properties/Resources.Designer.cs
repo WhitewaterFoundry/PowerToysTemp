@@ -19,7 +19,7 @@ namespace Microsoft.Plugin.Shell.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Resources {
@@ -57,6 +57,87 @@ namespace Microsoft.Plugin.Shell.Properties {
             }
             set {
                 resourceCulture = value;
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Find and run executable file.
+        /// </summary>
+        public static string find_executable_file_and_run_it {
+            get {
+                return ResourceManager.GetString("find_executable_file_and_run_it", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run in Command Prompt (cmd.exe).
+        /// </summary>
+        public static string run_command_in_command_prompt {
+            get {
+                return ResourceManager.GetString("run_command_in_command_prompt", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run in PowerShell (PowerShell.exe).
+        /// </summary>
+        public static string run_command_in_powershell {
+            get {
+                return ResourceManager.GetString("run_command_in_powershell", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run in PowerShell 7 (pwsh.exe).
+        /// </summary>
+        public static string run_command_in_powershell_seven {
+            get {
+                return ResourceManager.GetString("run_command_in_powershell_seven", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run in Command Prompt (cmd.exe) using Windows Terminal.
+        /// </summary>
+        public static string run_command_in_windows_terminal_cmd {
+            get {
+                return ResourceManager.GetString("run_command_in_windows_terminal_cmd", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run in PowerShell (PowerShell.exe) using Windows Terminal.
+        /// </summary>
+        public static string run_command_in_windows_terminal_powershell {
+            get {
+                return ResourceManager.GetString("run_command_in_windows_terminal_powershell", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run in PowerShell 7 (pwsh.exe) using Windows Terminal.
+        /// </summary>
+        public static string run_command_in_windows_terminal_powershell_seven {
+            get {
+                return ResourceManager.GetString("run_command_in_windows_terminal_powershell_seven", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Press Enter to continue.
+        /// </summary>
+        public static string run_plugin_cmd_wait_message {
+            get {
+                return ResourceManager.GetString("run_plugin_cmd_wait_message", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Keep shell open.
+        /// </summary>
+        public static string wox_leave_shell_open {
+            get {
+                return ResourceManager.GetString("wox_leave_shell_open", resourceCulture);
             }
         }
         
@@ -120,6 +201,33 @@ namespace Microsoft.Plugin.Shell.Properties {
         public static string wox_plugin_cmd_run_as_administrator {
             get {
                 return ResourceManager.GetString("wox_plugin_cmd_run_as_administrator", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run as different user (Ctrl+Shift+U).
+        /// </summary>
+        public static string wox_plugin_cmd_run_as_user {
+            get {
+                return ResourceManager.GetString("wox_plugin_cmd_run_as_user", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Command execution.
+        /// </summary>
+        public static string wox_shell_command_execution {
+            get {
+                return ResourceManager.GetString("wox_shell_command_execution", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to All entries that using the Windows Terminal forcing the Windows Terminal as console host regardless of the system setting.
+        /// </summary>
+        public static string wox_shell_command_execution_description {
+            get {
+                return ResourceManager.GetString("wox_shell_command_execution_description", resourceCulture);
             }
         }
     }

@@ -13,8 +13,6 @@ using Microsoft.Win32;
 
 namespace Microsoft.PowerToys.Run.Plugin.Registry.Helper
 {
-#pragma warning disable CA1031 // Do not catch general exception types
-
     /// <summary>
     /// Helper class to easier work with the registry
     /// </summary>
@@ -44,7 +42,7 @@ namespace Microsoft.PowerToys.Run.Plugin.Registry.Helper
         /// </summary>
         /// <param name="query">The query to search</param>
         /// <returns>A combination of a list of base <see cref="RegistryKey"/> and the sub keys</returns>
-        internal static (IEnumerable<RegistryKey>? baseKey, string subKey) GetRegistryBaseKey(in string query)
+        internal static (IEnumerable<RegistryKey>? BaseKey, string SubKey) GetRegistryBaseKey(in string query)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
@@ -145,7 +143,7 @@ namespace Microsoft.PowerToys.Run.Plugin.Registry.Helper
             Win32.Registry.SetValue(@"HKEY_Current_User\Software\Microsoft\Windows\CurrentVersion\Applets\Regedit", "LastKey", fullKey);
 
             // -m => allow multi-instance (hidden start option)
-            Wox.Infrastructure.Helper.OpenInShell("regedit.exe", "-m", null, true);
+            Wox.Infrastructure.Helper.OpenInShell("regedit.exe", "-m", null, Wox.Infrastructure.Helper.ShellRunAsType.Administrator);
         }
 
         /// <summary>
@@ -167,7 +165,7 @@ namespace Microsoft.PowerToys.Run.Plugin.Registry.Helper
                         continue;
                     }
 
-                    if (string.Equals(subKey, searchSubKey, StringComparison.InvariantCultureIgnoreCase))
+                    if (string.Equals(subKey, searchSubKey, StringComparison.OrdinalIgnoreCase))
                     {
                         var key = parentKey.OpenSubKey(subKey, RegistryKeyPermissionCheck.ReadSubTree);
                         if (key != null)
@@ -230,6 +228,4 @@ namespace Microsoft.PowerToys.Run.Plugin.Registry.Helper
             return list;
         }
     }
-
-    #pragma warning restore CA1031 // Do not catch general exception types
 }
