@@ -1,6 +1,7 @@
 #pragma once
 
 #include <FancyZonesLib/HighlightedZones.h>
+#include <common/notifications/NotificationUtil.h>
 
 class WorkArea;
 
@@ -9,7 +10,7 @@ class WindowMouseSnap
     WindowMouseSnap(HWND window, const std::unordered_map<HMONITOR, std::unique_ptr<WorkArea>>& activeWorkAreas);
 
 public:
-    static std::unique_ptr<WindowMouseSnap> Create(HWND window, const std::unordered_map<HMONITOR, std::unique_ptr<WorkArea>>& activeWorkAreas);
+    static std::unique_ptr<WindowMouseSnap> Create(HWND window, const std::unordered_map<HMONITOR, std::unique_ptr<WorkArea>>& activeWorkAreas, notifications::NotificationUtil* notificationUtil);
     ~WindowMouseSnap();
 
     bool MoveSizeStart(HMONITOR monitor, bool isSnapping);
@@ -24,8 +25,6 @@ private:
 
     struct WindowProperties
     {
-        // True if from the styles the window looks like a standard window
-        bool isStandardWindow = false;
         // True if the window is a top-level window that does not have a visible owner
         bool hasNoVisibleOwner = false;
         // Properties to restore after dragging

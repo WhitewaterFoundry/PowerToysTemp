@@ -4,14 +4,18 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Helpers;
 using Microsoft.PowerToys.Settings.UI.Services;
 using Microsoft.PowerToys.Settings.UI.ViewModels;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Windows.Data.Json;
 using Windows.System;
+using WinRT.Interop;
 
 namespace Microsoft.PowerToys.Settings.UI.Views
 {
@@ -34,12 +38,17 @@ namespace Microsoft.PowerToys.Settings.UI.Views
         /// <summary>
         /// Declaration for the updating the general settings callback function.
         /// </summary>
-        public delegate bool UpdatingGeneralSettingsCallback(string module, bool isEnabled);
+        public delegate bool UpdatingGeneralSettingsCallback(ModuleType moduleType, bool isEnabled);
 
         /// <summary>
         /// Declaration for the opening oobe window callback function.
         /// </summary>
         public delegate void OobeOpeningCallback();
+
+        /// <summary>
+        /// Declaration for the opening whats new window callback function.
+        /// </summary>
+        public delegate void WhatIsNewOpeningCallback();
 
         /// <summary>
         /// Declaration for the opening flyout window callback function.
@@ -87,6 +96,11 @@ namespace Microsoft.PowerToys.Settings.UI.Views
         public static OobeOpeningCallback OpenOobeWindowCallback { get; set; }
 
         /// <summary>
+        /// Gets or sets callback function for opening oobe window
+        /// </summary>
+        public static WhatIsNewOpeningCallback OpenWhatIsNewWindowCallback { get; set; }
+
+        /// <summary>
         /// Gets or sets callback function for opening flyout window
         /// </summary>
         public static FlyoutOpeningCallback OpenFlyoutCallback { get; set; }
@@ -110,6 +124,8 @@ namespace Microsoft.PowerToys.Settings.UI.Views
 
         public static bool IsUserAnAdmin { get; set; }
 
+        private Dictionary<Type, NavigationViewItem> _navViewParentLookup = new Dictionary<Type, NavigationViewItem>();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ShellPage"/> class.
         /// Shell page constructor.
@@ -126,6 +142,21 @@ namespace Microsoft.PowerToys.Settings.UI.Views
             // shellFrame.Navigate(typeof(GeneralPage));
             IPCResponseHandleList.Add(ReceiveMessage);
             SetTitleBar();
+
+            if (_navViewParentLookup.Count > 0)
+            {
+                _navViewParentLookup.Clear();
+            }
+
+            var topLevelItems = navigationView.MenuItems.OfType<NavigationViewItem>().ToArray();
+
+            foreach (var parent in topLevelItems)
+            {
+                foreach (var child in parent.MenuItems.OfType<NavigationViewItem>())
+                {
+                    _navViewParentLookup.TryAdd(child.GetValue(NavHelper.NavigateToProperty) as Type, parent);
+                }
+            }
         }
 
         public static int SendDefaultIPCMessage(string msg)
@@ -202,6 +233,15 @@ namespace Microsoft.PowerToys.Settings.UI.Views
         }
 
         /// <summary>
+        /// Set whats new opening callback function
+        /// </summary>
+        /// <param name="implementation">delegate function implementation.</param>
+        public static void SetOpenWhatIsNewCallback(WhatIsNewOpeningCallback implementation)
+        {
+            OpenWhatIsNewWindowCallback = implementation;
+        }
+
+        /// <summary>
         /// Set flyout opening callback function
         /// </summary>
         /// <param name="implementation">delegate function implementation.</param>
@@ -256,7 +296,7 @@ namespace Microsoft.PowerToys.Settings.UI.Views
 
         private bool navigationViewInitialStateProcessed; // avoid announcing initial state of the navigation pane.
 
-        private void NavigationView_PaneOpened(Microsoft.UI.Xaml.Controls.NavigationView sender, object args)
+        private void NavigationView_PaneOpened(NavigationView sender, object args)
         {
             if (!navigationViewInitialStateProcessed)
             {
@@ -272,7 +312,7 @@ namespace Microsoft.PowerToys.Settings.UI.Views
 
             if (AutomationPeer.ListenerExists(AutomationEvents.MenuOpened))
             {
-                var loader = Helpers.ResourceLoaderInstance.ResourceLoader;
+                var loader = ResourceLoaderInstance.ResourceLoader;
                 peer.RaiseNotificationEvent(
                     AutomationNotificationKind.ActionCompleted,
                     AutomationNotificationProcessing.ImportantMostRecent,
@@ -281,7 +321,7 @@ namespace Microsoft.PowerToys.Settings.UI.Views
             }
         }
 
-        private void NavigationView_PaneClosed(Microsoft.UI.Xaml.Controls.NavigationView sender, object args)
+        private void NavigationView_PaneClosed(NavigationView sender, object args)
         {
             if (!navigationViewInitialStateProcessed)
             {
@@ -297,7 +337,7 @@ namespace Microsoft.PowerToys.Settings.UI.Views
 
             if (AutomationPeer.ListenerExists(AutomationEvents.MenuClosed))
             {
-                var loader = Helpers.ResourceLoaderInstance.ResourceLoader;
+                var loader = ResourceLoaderInstance.ResourceLoader;
                 peer.RaiseNotificationEvent(
                     AutomationNotificationKind.ActionCompleted,
                     AutomationNotificationProcessing.ImportantMostRecent,
@@ -316,12 +356,23 @@ namespace Microsoft.PowerToys.Settings.UI.Views
             await Launcher.LaunchUriAsync(new Uri("https://aka.ms/powerToysGiveFeedback"));
         }
 
+        private void WhatIsNewItem_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            OpenWhatIsNewWindowCallback();
+        }
+
         private void NavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
             NavigationViewItem selectedItem = args.SelectedItem as NavigationViewItem;
             if (selectedItem != null)
             {
                 Type pageType = selectedItem.GetValue(NavHelper.NavigateToProperty) as Type;
+
+                if (_navViewParentLookup.TryGetValue(pageType, out var parentItem) && !parentItem.IsExpanded)
+                {
+                    parentItem.IsExpanded = true;
+                }
+
                 NavigationService.Navigate(pageType);
             }
         }
@@ -372,6 +423,8 @@ namespace Microsoft.PowerToys.Settings.UI.Views
                 // A custom title bar is required for full window theme and Mica support.
                 // https://docs.microsoft.com/windows/apps/develop/title-bar?tabs=winui3#full-customization
                 u.ExtendsContentIntoTitleBar = true;
+                u.AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+                WindowHelpers.ForceTopBorder1PixelInsetOnWindows10(WindowNative.GetWindowHandle(u));
                 u.SetTitleBar(AppTitleBar);
                 var loader = ResourceLoaderInstance.ResourceLoader;
                 AppTitleBarText.Text = App.IsElevated ? loader.GetString("SettingsWindow_AdminTitle") : loader.GetString("SettingsWindow_Title");
@@ -405,6 +458,19 @@ namespace Microsoft.PowerToys.Settings.UI.Views
         private void PaneToggleBtn_Click(object sender, RoutedEventArgs e)
         {
             navigationView.IsPaneOpen = !navigationView.IsPaneOpen;
+        }
+
+        private void ExitPTItem_Tapped(object sender, RoutedEventArgs e)
+        {
+            const string ptTrayIconWindowClass = "PToyTrayIconWindow"; // Defined in runner/tray_icon.h
+            const nuint ID_EXIT_MENU_COMMAND = 40001;                  // Generated resource from runner/runner.base.rc
+
+            // Exit the XAML application
+            Application.Current.Exit();
+
+            // Invoke the exit command from the tray icon
+            IntPtr hWnd = NativeMethods.FindWindow(ptTrayIconWindowClass, ptTrayIconWindowClass);
+            NativeMethods.SendMessage(hWnd, NativeMethods.WM_COMMAND, ID_EXIT_MENU_COMMAND, 0);
         }
     }
 }

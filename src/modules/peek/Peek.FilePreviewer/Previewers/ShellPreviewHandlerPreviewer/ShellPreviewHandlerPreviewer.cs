@@ -8,6 +8,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.UI.Dispatching;
 using Microsoft.Win32;
@@ -16,10 +17,12 @@ using Peek.Common.Helpers;
 using Peek.Common.Models;
 using Peek.FilePreviewer.Models;
 using Peek.FilePreviewer.Previewers.Helpers;
+using Peek.FilePreviewer.Previewers.Interfaces;
 using Windows.Win32;
 using Windows.Win32.System.Com;
 using Windows.Win32.UI.Shell;
 using Windows.Win32.UI.Shell.PropertiesSystem;
+
 using IShellItem = Windows.Win32.UI.Shell.IShellItem;
 
 namespace Peek.FilePreviewer.Previewers
@@ -90,12 +93,12 @@ namespace Peek.FilePreviewer.Previewers
                             // TODO: Figure out how to get it to run in a low integrity level
                             if (!HandlerFactories.TryGetValue(clsid, out var factory))
                             {
-                                var hr = PInvoke.CoGetClassObject(clsid, CLSCTX.CLSCTX_LOCAL_SERVER, null, typeof(IClassFactory).GUID, out var pFactory);
+                                var hr = PInvoke_FilePreviewer.CoGetClassObject(clsid, CLSCTX.CLSCTX_LOCAL_SERVER, null, typeof(IClassFactory).GUID, out object pFactory);
                                 Marshal.ThrowExceptionForHR(hr);
 
                                 // Storing the factory in memory helps makes the handlers load faster
                                 // TODO: Maybe free them after some inactivity or when Peek quits?
-                                factory = (IClassFactory)Marshal.GetObjectForIUnknown((IntPtr)pFactory);
+                                factory = (IClassFactory)pFactory;
                                 factory.LockServer(true);
                                 HandlerFactories.AddOrUpdate(clsid, factory, (_, _) => factory);
                             }
@@ -146,7 +149,7 @@ namespace Peek.FilePreviewer.Previewers
                 }
                 else if (previewHandler is IInitializeWithItem initWithItem)
                 {
-                    var hr = PInvoke.SHCreateItemFromParsingName(FileItem.Path, null, typeof(IShellItem).GUID, out var item);
+                    var hr = PInvoke_FilePreviewer.SHCreateItemFromParsingName(FileItem.Path, null, typeof(IShellItem).GUID, out var item);
                     Marshal.ThrowExceptionForHR(hr);
 
                     initWithItem.Initialize((IShellItem)item, STGM_READ);
@@ -205,9 +208,9 @@ namespace Peek.FilePreviewer.Previewers
             }
         }
 
-        public static bool IsFileTypeSupported(string fileExt)
+        public static bool IsItemSupported(IFileSystemItem item)
         {
-            return !string.IsNullOrEmpty(GetPreviewHandlerGuid(fileExt));
+            return !string.IsNullOrEmpty(GetPreviewHandlerGuid(item.Extension));
         }
 
         private static string? GetPreviewHandlerGuid(string fileExt)

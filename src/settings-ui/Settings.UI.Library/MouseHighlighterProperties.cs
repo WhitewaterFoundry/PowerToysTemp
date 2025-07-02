@@ -4,10 +4,13 @@
 
 using System.Text.Json.Serialization;
 
+using Settings.UI.Library.Attributes;
+
 namespace Microsoft.PowerToys.Settings.UI.Library
 {
     public class MouseHighlighterProperties
     {
+        [CmdConfigureIgnore]
         public HotkeySettings DefaultActivationShortcut => new HotkeySettings(true, false, false, true, 0x48);
 
         [JsonPropertyName("activation_shortcut")]
@@ -20,6 +23,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         public StringProperty RightButtonClickColor { get; set; }
 
         [JsonPropertyName("highlight_opacity")]
+        [CmdConfigureIgnore]
         public IntProperty HighlightOpacity { get; set; }
 
         [JsonPropertyName("always_color")]
@@ -37,6 +41,9 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("auto_activate")]
         public BoolProperty AutoActivate { get; set; }
 
+        [JsonPropertyName("spotlight_mode")]
+        public BoolProperty SpotlightMode { get; set; }
+
         public MouseHighlighterProperties()
         {
             ActivationShortcut = DefaultActivationShortcut;
@@ -48,6 +55,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             HighlightFadeDelayMs = new IntProperty(500);
             HighlightFadeDurationMs = new IntProperty(250);
             AutoActivate = new BoolProperty(false);
+            SpotlightMode = new BoolProperty(false);
         }
     }
 }

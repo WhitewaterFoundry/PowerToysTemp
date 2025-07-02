@@ -3,14 +3,14 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using interop;
-using ManagedCommon;
+
 using Microsoft.PowerToys.Settings.UI.Helpers;
 using Microsoft.PowerToys.Settings.UI.OOBE.Enums;
 using Microsoft.PowerToys.Settings.UI.OOBE.Views;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using PowerToys.Interop;
 using Windows.Graphics;
 using WinUIEx;
 using WinUIEx.Messaging;
@@ -20,7 +20,7 @@ namespace Microsoft.PowerToys.Settings.UI
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
     /// </summary>
-    public sealed partial class OobeWindow : WindowEx
+    public sealed partial class OobeWindow : WindowEx, IDisposable
     {
         private PowerToysModules initialModule;
 
@@ -31,28 +31,19 @@ namespace Microsoft.PowerToys.Settings.UI
         private WindowId _windowId;
         private IntPtr _hWnd;
         private AppWindow _appWindow;
+        private bool disposedValue;
 
-        public OobeWindow(PowerToysModules initialModule, bool isDark)
+        public OobeWindow(PowerToysModules initialModule)
         {
+            App.ThemeService.ThemeChanged += OnThemeChanged;
+            App.ThemeService.ApplyTheme();
+
             this.InitializeComponent();
 
-            // Set window icon
             _hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             _windowId = Win32Interop.GetWindowIdFromWindow(_hWnd);
             _appWindow = AppWindow.GetFromWindowId(_windowId);
-            _appWindow.SetIcon("Assets\\Settings\\icon.ico");
-
-            // Passed by parameter, as it needs to be evaluated ASAP, otherwise there is a white flash
-            if (isDark)
-            {
-                ThemeHelpers.SetImmersiveDarkMode(_hWnd, isDark);
-            }
-
-            SetTheme(isDark);
-
-            OverlappedPresenter presenter = _appWindow.Presenter as OverlappedPresenter;
-            presenter.IsMinimizable = false;
-            presenter.IsMaximizable = false;
+            this.Activated += Window_Activated_SetIcon;
 
             var dpi = NativeMethods.GetDpiForWindow(_hWnd);
             _currentDPI = dpi;
@@ -66,18 +57,6 @@ namespace Microsoft.PowerToys.Settings.UI
             _appWindow.Resize(size);
 
             this.initialModule = initialModule;
-
-            var msgMonitor = new WindowMessageMonitor(this);
-            msgMonitor.WindowMessageReceived += (_, e) =>
-            {
-                const int WM_NCLBUTTONDBLCLK = 0x00A3;
-                if (e.Message.MessageId == WM_NCLBUTTONDBLCLK)
-                {
-                    // Disable double click on title bar to maximize window
-                    e.Result = 0;
-                    e.Handled = true;
-                }
-            };
 
             this.SizeChanged += OobeWindow_SizeChanged;
 
@@ -103,6 +82,20 @@ namespace Microsoft.PowerToys.Settings.UI
             {
                 App.OpenSettingsWindow(type);
             });
+        }
+
+        public void SetAppWindow(PowerToysModules module)
+        {
+            if (shellPage != null)
+            {
+                shellPage.NavigateToModule(module);
+            }
+        }
+
+        private void Window_Activated_SetIcon(object sender, WindowActivatedEventArgs args)
+        {
+            // Set window icon
+            _appWindow.SetIcon("Assets\\Settings\\icon.ico");
         }
 
         private void OobeWindow_SizeChanged(object sender, WindowSizeChangedEventArgs args)
@@ -131,11 +124,28 @@ namespace Microsoft.PowerToys.Settings.UI
             {
                 mainWindow.CloseHiddenWindow();
             }
+
+            App.ThemeService.ThemeChanged -= OnThemeChanged;
         }
 
-        public void SetTheme(bool isDark)
+        private void OnThemeChanged(object sender, ElementTheme theme)
         {
-            shellPage.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+            WindowHelper.SetTheme(this, theme);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

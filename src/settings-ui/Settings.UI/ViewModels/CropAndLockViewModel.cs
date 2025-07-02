@@ -6,15 +6,17 @@ using System;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+
 using global::PowerToys.GPOWrapper;
 using Microsoft.PowerToys.Settings.UI.Library;
 using Microsoft.PowerToys.Settings.UI.Library.Helpers;
 using Microsoft.PowerToys.Settings.UI.Library.Interfaces;
 using Microsoft.PowerToys.Settings.UI.Library.Utilities;
+using Microsoft.PowerToys.Settings.UI.SerializationContext;
 
 namespace Microsoft.PowerToys.Settings.UI.ViewModels
 {
-    public class CropAndLockViewModel : Observable
+    public partial class CropAndLockViewModel : Observable
     {
         private ISettingsUtils SettingsUtils { get; set; }
 
@@ -26,28 +28,19 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
         public CropAndLockViewModel(ISettingsUtils settingsUtils, ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<CropAndLockSettings> moduleSettingsRepository, Func<string, int> ipcMSGCallBackFunc)
         {
-            if (settingsUtils == null)
-            {
-                throw new ArgumentNullException(nameof(settingsUtils));
-            }
+            ArgumentNullException.ThrowIfNull(settingsUtils);
 
             SettingsUtils = settingsUtils;
 
             // To obtain the general settings configurations of PowerToys Settings.
-            if (settingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(settingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(settingsRepository);
 
             GeneralSettingsConfig = settingsRepository.SettingsConfig;
 
             InitializeEnabledValue();
 
             // To obtain the settings configurations of CropAndLock.
-            if (moduleSettingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(moduleSettingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(moduleSettingsRepository);
 
             Settings = moduleSettingsRepository.SettingsConfig;
 
@@ -130,7 +123,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                             CultureInfo.InvariantCulture,
                             "{{ \"powertoys\": {{ \"{0}\": {1} }} }}",
                             CropAndLockSettings.ModuleName,
-                            JsonSerializer.Serialize(Settings)));
+                            JsonSerializer.Serialize(Settings, SourceGenerationContextContext.Default.CropAndLockSettings)));
                 }
             }
         }
@@ -161,7 +154,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                             CultureInfo.InvariantCulture,
                             "{{ \"powertoys\": {{ \"{0}\": {1} }} }}",
                             CropAndLockSettings.ModuleName,
-                            JsonSerializer.Serialize(Settings)));
+                            JsonSerializer.Serialize(Settings, SourceGenerationContextContext.Default.CropAndLockSettings)));
                 }
             }
         }

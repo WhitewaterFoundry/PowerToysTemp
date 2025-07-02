@@ -4,6 +4,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+
 using global::PowerToys.GPOWrapper;
 using Microsoft.PowerToys.Settings.UI.Library;
 using Microsoft.PowerToys.Settings.UI.Library.Helpers;
@@ -11,7 +12,7 @@ using Microsoft.PowerToys.Settings.UI.Library.Interfaces;
 
 namespace Microsoft.PowerToys.Settings.UI.ViewModels
 {
-    public class ShortcutGuideViewModel : Observable
+    public partial class ShortcutGuideViewModel : Observable
     {
         private ISettingsUtils SettingsUtils { get; set; }
 
@@ -34,19 +35,13 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             _settingsConfigFileFolder = configFileSubfolder;
 
             // To obtain the general PowerToys settings.
-            if (settingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(settingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(settingsRepository);
 
             GeneralSettingsConfig = settingsRepository.SettingsConfig;
 
             // To obtain the shortcut guide settings, if the file exists.
             // If not, to create a file with the default settings and to return the default configurations.
-            if (moduleSettingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(moduleSettingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(moduleSettingsRepository);
 
             Settings = moduleSettingsRepository.SettingsConfig;
 

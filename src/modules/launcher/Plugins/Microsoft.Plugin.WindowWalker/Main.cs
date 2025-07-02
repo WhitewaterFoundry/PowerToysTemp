@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Windows.Controls;
+
 using ManagedCommon;
 using Microsoft.Plugin.WindowWalker.Components;
 using Microsoft.PowerToys.Settings.UI.Library;
@@ -35,10 +36,7 @@ namespace Microsoft.Plugin.WindowWalker
 
         public List<Result> Query(Query query)
         {
-            if (query == null)
-            {
-                throw new ArgumentNullException(nameof(query));
-            }
+            ArgumentNullException.ThrowIfNull(query);
 
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();

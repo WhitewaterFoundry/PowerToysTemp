@@ -3,16 +3,20 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Text.Json.Serialization;
+
 using ManagedCommon;
+using Settings.UI.Library.Attributes;
 
 namespace Microsoft.PowerToys.Settings.UI.Library
 {
     public class PowerLauncherProperties
     {
         [JsonPropertyName("search_result_preference")]
+        [CmdConfigureIgnoreAttribute]
         public string SearchResultPreference { get; set; }
 
         [JsonPropertyName("search_type_preference")]
+        [CmdConfigureIgnoreAttribute]
         public string SearchTypePreference { get; set; }
 
         [JsonPropertyName("maximum_number_of_results")]
@@ -22,18 +26,23 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         public HotkeySettings OpenPowerLauncher { get; set; }
 
         [JsonPropertyName("open_file_location")]
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings OpenFileLocation { get; set; }
 
         [JsonPropertyName("copy_path_location")]
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings CopyPathLocation { get; set; }
 
         [JsonPropertyName("open_console")]
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings OpenConsole { get; set; }
 
         [JsonPropertyName("override_win_r_key")]
+        [CmdConfigureIgnoreAttribute]
         public bool OverrideWinkeyR { get; set; }
 
         [JsonPropertyName("override_win_s_key")]
+        [CmdConfigureIgnoreAttribute]
         public bool OverrideWinkeyS { get; set; }
 
         [JsonPropertyName("ignore_hotkeys_in_fullscreen")]
@@ -47,6 +56,13 @@ namespace Microsoft.PowerToys.Settings.UI.Library
 
         [JsonPropertyName("theme")]
         public Theme Theme { get; set; }
+
+        [JsonPropertyName("show_plugins_overview")]
+        [CmdConfigureIgnore]
+        public int ShowPluginsOverview { get; set; }
+
+        [JsonPropertyName("title_fontsize")]
+        public int TitleFontSize { get; set; }
 
         [JsonPropertyName("startupPosition")]
         public StartupPosition Position { get; set; }
@@ -78,10 +94,13 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("generate_thumbnails_from_files")]
         public bool GenerateThumbnailsFromFiles { get; set; }
 
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings DefaultOpenPowerLauncher => new HotkeySettings(false, false, true, false, 32);
 
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings DefaultOpenFileLocation => new HotkeySettings();
 
+        [CmdConfigureIgnoreAttribute]
         public HotkeySettings DefaultCopyPathLocation => new HotkeySettings();
 
         public PowerLauncherProperties()
@@ -107,6 +126,8 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             SearchWaitForSlowResults = false;
             GenerateThumbnailsFromFiles = true;
             UsePinyin = false;
+            ShowPluginsOverview = 0;
+            TitleFontSize = 16;
         }
     }
 }

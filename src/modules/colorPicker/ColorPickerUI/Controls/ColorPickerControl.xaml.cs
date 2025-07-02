@@ -11,10 +11,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+
 using ColorPicker.Helpers;
 using ManagedCommon;
-using ModernWpf.Controls;
-using ModernWpf.Controls.Primitives;
+
+using static System.Net.Mime.MediaTypeNames;
 
 namespace ColorPicker.Controls
 {
@@ -193,17 +194,17 @@ namespace ColorPicker.Controls
             {
                 _isCollapsed = false;
 
-                var resizeColor = new DoubleAnimation(349, new Duration(TimeSpan.FromMilliseconds(250)));
+                var resizeColor = new DoubleAnimation(256, new Duration(TimeSpan.FromMilliseconds(250)));
                 resizeColor.EasingFunction = new ExponentialEase() { EasingMode = EasingMode.EaseInOut };
 
                 var moveColor = new ThicknessAnimation(new Thickness(0), new Duration(TimeSpan.FromMilliseconds(250)));
                 moveColor.EasingFunction = new ExponentialEase() { EasingMode = EasingMode.EaseInOut };
 
-                ControlHelper.SetCornerRadius(CurrentColorButton, new CornerRadius(2));
-                CurrentColorButton.BeginAnimation(Button.WidthProperty, resizeColor);
-                CurrentColorButton.BeginAnimation(Button.MarginProperty, moveColor);
+                CurrentColorButton.BeginAnimation(System.Windows.Controls.Button.HeightProperty, resizeColor);
+                CurrentColorButton.BeginAnimation(System.Windows.Controls.Button.MarginProperty, moveColor);
                 CurrentColorButton.IsEnabled = false;
                 SessionEventHelper.Event.EditorAdjustColorOpened = true;
+                DetailsFlyout.IsOpen = true;
             }
         }
 
@@ -216,22 +217,20 @@ namespace ColorPicker.Controls
                 var resizeColor = new DoubleAnimation(165, new Duration(TimeSpan.FromMilliseconds(150)));
                 resizeColor.EasingFunction = new ExponentialEase() { EasingMode = EasingMode.EaseInOut };
 
-                var moveColor = new ThicknessAnimation(new Thickness(92, 0, 0, 0), new Duration(TimeSpan.FromMilliseconds(150)));
+                var moveColor = new ThicknessAnimation(new Thickness(0, 72, 0, 72), new Duration(TimeSpan.FromMilliseconds(150)));
                 moveColor.EasingFunction = new ExponentialEase() { EasingMode = EasingMode.EaseInOut };
 
-                ControlHelper.SetCornerRadius(CurrentColorButton, new CornerRadius(0));
-                CurrentColorButton.BeginAnimation(Button.WidthProperty, resizeColor);
-                CurrentColorButton.BeginAnimation(Button.MarginProperty, moveColor);
+                CurrentColorButton.BeginAnimation(System.Windows.Controls.Button.HeightProperty, resizeColor);
+                CurrentColorButton.BeginAnimation(System.Windows.Controls.Button.MarginProperty, moveColor);
                 CurrentColorButton.IsEnabled = true;
             }
         }
 
         private void OKButton_Click(object sender, RoutedEventArgs e)
         {
-            HideDetails();
             SelectedColorChangedCommand.Execute(_currentColor);
             SessionEventHelper.Event.EditorColorAdjusted = true;
-            DetailsFlyout.Hide();
+            DetailsFlyout.IsOpen = false;
         }
 
         private void DetailsFlyout_Closed(object sender, object e)
@@ -253,7 +252,7 @@ namespace ColorPicker.Controls
 
         private void ColorVariationButton_Click(object sender, RoutedEventArgs e)
         {
-            var selectedColor = ((SolidColorBrush)((Button)sender).Background).Color;
+            var selectedColor = ((SolidColorBrush)((System.Windows.Controls.Button)sender).Background).Color;
             SelectedColorChangedCommand.Execute(selectedColor);
             SessionEventHelper.Event.EditorSimilarColorPicked = true;
         }
@@ -284,7 +283,7 @@ namespace ColorPicker.Controls
 
         private void HexCode_TextChanged(object sender, TextChangedEventArgs e)
         {
-            var newValue = (sender as TextBox).Text;
+            var newValue = (sender as System.Windows.Controls.TextBox).Text;
 
             // support hex with 3 and 6 characters and optional with hashtag
             var reg = new Regex("^#?([0-9A-Fa-f]{3}){1,2}$");
@@ -325,11 +324,11 @@ namespace ColorPicker.Controls
 
         private static string ColorToHex(Color color, string oldValue = "")
         {
-            string newHexString = BitConverter.ToString(new byte[] { color.R, color.G, color.B }).Replace("-", string.Empty, StringComparison.InvariantCulture);
+            string newHexString = Convert.ToHexString(new byte[] { color.R, color.G, color.B });
             newHexString = newHexString.ToLowerInvariant();
 
             // Return only with hashtag if user typed it before
-            bool addHashtag = oldValue.StartsWith("#", StringComparison.InvariantCulture);
+            bool addHashtag = oldValue.StartsWith('#');
             return addHashtag ? "#" + newHexString : newHexString;
         }
 
@@ -348,7 +347,7 @@ namespace ColorPicker.Controls
             else
             {
                 // Hex with or without hashtag and six characters
-                return hexCodeText.StartsWith("#", StringComparison.InvariantCulture) ? hexCodeText : "#" + hexCodeText;
+                return hexCodeText.StartsWith('#') ? hexCodeText : "#" + hexCodeText;
             }
         }
 
@@ -357,14 +356,20 @@ namespace ColorPicker.Controls
             (sender as System.Windows.Controls.TextBox).SelectAll();
         }
 
+        private void TextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            e.Handled = !System.Text.RegularExpressions.Regex.IsMatch(e.Text, "^[0-9]+$");
+        }
+
         private void RGBNumberBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (!_ignoreRGBChanges)
             {
-                var numberBox = sender as NumberBox;
-                var r = numberBox.Name == "RNumberBox" ? GetValueFromNumberBox(numberBox) : (byte)RNumberBox.Value;
-                var g = numberBox.Name == "GNumberBox" ? GetValueFromNumberBox(numberBox) : (byte)GNumberBox.Value;
-                var b = numberBox.Name == "BNumberBox" ? GetValueFromNumberBox(numberBox) : (byte)BNumberBox.Value;
+                var numberBox = sender as TextBox;
+                byte r = numberBox.Name == "RNumberBox" ? GetValueFromNumberBox(numberBox, _currentColor.R) : _currentColor.R;
+                byte g = numberBox.Name == "GNumberBox" ? GetValueFromNumberBox(numberBox, _currentColor.G) : _currentColor.G;
+                byte b = numberBox.Name == "BNumberBox" ? GetValueFromNumberBox(numberBox, _currentColor.B) : _currentColor.B;
+
                 _ignoreRGBChanges = true;
                 SetColorFromTextBoxes(System.Drawing.Color.FromArgb(r, g, b));
                 _ignoreRGBChanges = false;
@@ -377,21 +382,34 @@ namespace ColorPicker.Controls
         /// </summary>
         /// <param name="numberBox">numberBox control which value we want to get</param>
         /// <returns>Validated value as per numberbox conditions, if content is invalid it returns previous value</returns>
-        private static byte GetValueFromNumberBox(NumberBox numberBox)
+        private static byte GetValueFromNumberBox(TextBox numberBox, byte previousValue)
         {
-            var internalTextBox = GetChildOfType<TextBox>(numberBox);
-            var parsedValue = numberBox.NumberFormatter.ParseDouble(internalTextBox.Text);
+            int minimum = 0;
+            int maximum = 255;
+            double? parsedValue = ParseDouble(numberBox.Text);
+
             if (parsedValue != null)
             {
                 var parsedValueByte = (byte)parsedValue;
-                if (parsedValueByte >= numberBox.Minimum && parsedValueByte <= numberBox.Maximum)
+
+                if (parsedValueByte >= minimum && parsedValueByte <= maximum)
                 {
                     return parsedValueByte;
                 }
             }
 
             // not valid input, return previous value
-            return (byte)numberBox.Value;
+            return previousValue;
+        }
+
+        public static double? ParseDouble(string text)
+        {
+            if (double.TryParse(text, out double result))
+            {
+                return result;
+            }
+
+            return null;
         }
 
         public static T GetChildOfType<T>(DependencyObject depObj)

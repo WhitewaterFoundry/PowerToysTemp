@@ -15,6 +15,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
+
 using ManagedCommon;
 using Microsoft.PowerToys.Settings.UI.Library.Utilities;
 
@@ -24,10 +25,15 @@ namespace Microsoft.PowerToys.Settings.UI.Library
     {
         private static SettingsBackupAndRestoreUtils instance;
         private (bool Success, string Severity, bool LastBackupExists, DateTime? LastRan) lastBackupSettingsResults;
-        private static object backupSettingsInternalLock = new object();
-        private static object removeOldBackupsLock = new object();
+        private static Lock backupSettingsInternalLock = new Lock();
+        private static Lock removeOldBackupsLock = new Lock();
 
         public DateTime LastBackupStartTime { get; set; }
+
+        private static readonly JsonSerializerOptions _serializerOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+        };
 
         private SettingsBackupAndRestoreUtils()
         {
@@ -319,8 +325,24 @@ namespace Microsoft.PowerToys.Settings.UI.Library
                             // the settings file needs to be updated, update the real one with non-excluded stuff...
                             Logger.LogInfo($"Settings file {currentFile.Key} is different and is getting updated from backup");
 
-                            var newCurrentSettingsFile = JsonMergeHelper.Merge(File.ReadAllText(currentSettingsFiles[currentFile.Key]), settingsToRestoreJson);
-                            File.WriteAllText(currentSettingsFiles[currentFile.Key], newCurrentSettingsFile);
+                            // we needed a new "CustomRestoreSettings" for now, to overwrite because some settings don't merge well (like KBM shortcuts)
+                            var overwrite = false;
+                            if (backupRestoreSettings["CustomRestoreSettings"] != null && backupRestoreSettings["CustomRestoreSettings"][currentFile.Key] != null)
+                            {
+                                var customRestoreSettings = backupRestoreSettings["CustomRestoreSettings"][currentFile.Key];
+                                overwrite = customRestoreSettings["overwrite"] != null && (bool)customRestoreSettings["overwrite"];
+                            }
+
+                            if (overwrite)
+                            {
+                                File.WriteAllText(currentSettingsFiles[currentFile.Key], settingsToRestoreJson);
+                            }
+                            else
+                            {
+                                var newCurrentSettingsFile = JsonMergeHelper.Merge(File.ReadAllText(currentSettingsFiles[currentFile.Key]), settingsToRestoreJson);
+                                File.WriteAllText(currentSettingsFiles[currentFile.Key], newCurrentSettingsFile);
+                            }
+
                             anyFilesUpdated = true;
                         }
                     }
@@ -378,7 +400,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             return settingsBackupAndRestoreDir;
         }
 
-        private IList<string> GetBackupSettingsFiles(string settingsBackupAndRestoreDir)
+        private List<string> GetBackupSettingsFiles(string settingsBackupAndRestoreDir)
         {
             return Directory.GetFiles(settingsBackupAndRestoreDir, "settings_*.ptb", SearchOption.TopDirectoryOnly).ToList().Where(f => Regex.IsMatch(f, "settings_(\\d{1,19}).ptb")).ToList();
         }
@@ -745,7 +767,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
                         UnchangedFiles = skippedSettingsFiles.Keys.ToList(),
                     };
 
-                    var manifest = JsonSerializer.Serialize(manifestData, new JsonSerializerOptions() { WriteIndented = true });
+                    var manifest = JsonSerializer.Serialize(manifestData, _serializerOptions);
 
                     if (!dryRun)
                     {
@@ -858,10 +880,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         /// </summary>
         private static JsonArray GetPTRunIgnoredSettings(JsonNode backupRestoreSettings)
         {
-            if (backupRestoreSettings == null)
-            {
-                throw new ArgumentNullException(nameof(backupRestoreSettings));
-            }
+            ArgumentNullException.ThrowIfNull(backupRestoreSettings);
 
             if (backupRestoreSettings["IgnoredPTRunSettings"] != null)
             {
@@ -876,10 +895,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         /// </summary>
         private static string[] GetIgnoredSettings(JsonNode backupRestoreSettings, string settingFileKey)
         {
-            if (backupRestoreSettings == null)
-            {
-                throw new ArgumentNullException(nameof(backupRestoreSettings));
-            }
+            ArgumentNullException.ThrowIfNull(backupRestoreSettings);
 
             if (settingFileKey.StartsWith("\\", StringComparison.OrdinalIgnoreCase))
             {
@@ -917,7 +933,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         /// </summary>
         private static void RemoveOldBackups(string location, int minNumberToKeep, TimeSpan deleteIfOlderThanTs)
         {
-            if (!Monitor.TryEnter(removeOldBackupsLock, 1000))
+            if (!removeOldBackupsLock.TryEnter(1000))
             {
                 return;
             }
@@ -986,7 +1002,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             }
             finally
             {
-                Monitor.Exit(removeOldBackupsLock);
+                removeOldBackupsLock.Exit();
             }
         }
 
@@ -999,7 +1015,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             public static string Normalize(string json)
             {
                 var doc1 = JsonNormalizer.Deserialize(json);
-                var newJson1 = JsonSerializer.Serialize(doc1, new JsonSerializerOptions { WriteIndented = true });
+                var newJson1 = JsonSerializer.Serialize(doc1, _serializerOptions);
                 return newJson1;
             }
 

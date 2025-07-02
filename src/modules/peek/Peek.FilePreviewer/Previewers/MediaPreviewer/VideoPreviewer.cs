@@ -4,11 +4,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+
 using CommunityToolkit.Mvvm.ComponentModel;
-using Microsoft.PowerToys.Settings.UI.Library;
+using ManagedCommon;
 using Microsoft.UI.Dispatching;
 using Peek.Common.Extensions;
 using Peek.Common.Helpers;
@@ -17,6 +17,8 @@ using Peek.FilePreviewer.Models;
 using Peek.FilePreviewer.Previewers.Interfaces;
 using Windows.Foundation;
 using Windows.Media.Core;
+using Windows.Media.MediaProperties;
+using Windows.Media.Transcoding;
 using Windows.Storage;
 
 namespace Peek.FilePreviewer.Previewers
@@ -32,6 +34,9 @@ namespace Peek.FilePreviewer.Previewers
         [ObservableProperty]
         private Size videoSize;
 
+        [ObservableProperty]
+        private string? missingCodecName;
+
         public VideoPreviewer(IFileSystemItem file)
         {
             Item = file;
@@ -44,9 +49,9 @@ namespace Peek.FilePreviewer.Previewers
 
         private Task<bool>? VideoTask { get; set; }
 
-        public static bool IsFileTypeSupported(string fileExt)
+        public static bool IsItemSupported(IFileSystemItem item)
         {
-            return _supportedFileTypes.Contains(fileExt);
+            return _supportedFileTypes.Contains(item.Extension);
         }
 
         public void Dispose()
@@ -57,6 +62,7 @@ namespace Peek.FilePreviewer.Previewers
         public async Task LoadPreviewAsync(CancellationToken cancellationToken)
         {
             State = PreviewState.Loading;
+            MissingCodecName = null;
             VideoTask = LoadVideoAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             await VideoTask;
@@ -91,6 +97,35 @@ namespace Peek.FilePreviewer.Previewers
             });
         }
 
+        private async Task<string> GetMissingCodecAsync(StorageFile? file)
+        {
+            try
+            {
+                var profile = await MediaEncodingProfile.CreateFromFileAsync(file);
+
+                if (profile.Video != null)
+                {
+                    var codecQuery = new CodecQuery();
+                    var decoders = await codecQuery.FindAllAsync(
+                        CodecKind.Video,
+                        CodecCategory.Decoder,
+                        profile.Video.Subtype);
+
+                    return decoders.Count > 0 ? string.Empty : profile.Video.Subtype;
+                }
+                else
+                {
+                    Logger.LogWarning($"No video profile found for file {file?.Path}. Cannot determine codec support.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError($"Error checking codec support for file {file?.Path}: {ex.Message}");
+            }
+
+            return string.Empty;
+        }
+
         private Task<bool> LoadVideoAsync(CancellationToken cancellationToken)
         {
             return TaskExtension.RunSafe(async () =>
@@ -99,9 +134,16 @@ namespace Peek.FilePreviewer.Previewers
 
                 var storageFile = await Item.GetStorageItemAsync() as StorageFile;
 
+                var missingCodecName = await GetMissingCodecAsync(storageFile);
+
                 await Dispatcher.RunOnUiThread(() =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!string.IsNullOrEmpty(missingCodecName))
+                    {
+                        MissingCodecName = missingCodecName;
+                    }
 
                     Preview = MediaSource.CreateFromStorageFile(storageFile);
                 });
@@ -116,7 +158,7 @@ namespace Peek.FilePreviewer.Previewers
         private static readonly HashSet<string> _supportedFileTypes = new()
         {
             ".mp4", ".3g2", ".3gp", ".3gp2", ".3gpp", ".asf", ".avi", ".m2t", ".m2ts",
-            ".m4v", ".mkv", ".mov", ".mp4", ".mp4v", ".mts", ".wm", ".wmv",
+            ".m4v", ".mkv", ".mov", ".mp4", ".mp4v", ".mts", ".wm", ".wmv", ".webm",
         };
     }
 }

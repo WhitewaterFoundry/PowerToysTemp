@@ -33,10 +33,7 @@ namespace Wox.Plugin
 
             set
             {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
+                ArgumentNullException.ThrowIfNull(value);
 
                 // Using Ordinal since this is used internally
                 _title = value.Replace("\n", " ", StringComparison.Ordinal);
@@ -190,5 +187,20 @@ namespace Wox.Plugin
         /// Gets plugin ID that generated this result
         /// </summary>
         public string PluginID { get; internal set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether usage based sorting should be applied to this result.
+        /// </summary>
+        public bool DisableUsageBasedScoring { get; set; }
+
+        public int GetSortOrderScore(int selectedItemMultiplier)
+        {
+            if (DisableUsageBasedScoring)
+            {
+                return Metadata.WeightBoost + Score;
+            }
+
+            return Metadata.WeightBoost + Score + (SelectedCount * selectedItemMultiplier);
+        }
     }
 }

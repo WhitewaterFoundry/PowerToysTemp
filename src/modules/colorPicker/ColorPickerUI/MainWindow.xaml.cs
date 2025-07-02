@@ -5,6 +5,7 @@
 using System.ComponentModel.Composition;
 using System.Windows;
 using System.Windows.Interop;
+
 using ColorPicker.ViewModelContracts;
 
 namespace ColorPicker

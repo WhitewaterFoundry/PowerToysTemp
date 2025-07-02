@@ -18,7 +18,8 @@ CContextMenuHandler::CContextMenuHandler()
 {
     m_pidlFolder = NULL;
     m_pdtobj = NULL;
-    app_name = GET_RESOURCE_STRING(IDS_RESIZE_PICTURES);
+    context_menu_caption = GET_RESOURCE_STRING_FALLBACK(IDS_IMAGERESIZER_CONTEXT_MENU_ENTRY, L"Resize with Image Resizer");
+    context_menu_caption_here = GET_RESOURCE_STRING_FALLBACK(IDS_IMAGERESIZER_CONTEXT_MENU_ENTRY_HERE, L"Resize with Image Resizer here");
 }
 
 CContextMenuHandler::~CContextMenuHandler()
@@ -105,22 +106,16 @@ HRESULT CContextMenuHandler::QueryContextMenu(_In_ HMENU hmenu, UINT indexMenu, 
     if (type == PERCEIVED_TYPE_IMAGE)
     {
         HRESULT hr = E_UNEXPECTED;
-        wchar_t strResizePictures[64] = { 0 };
+        wchar_t strResizePictures[128] = { 0 };
         // If handling drag-and-drop...
         if (m_pidlFolder)
         {
-            // Suppressing C6031 warning since return value is not required.
-#pragma warning(suppress : 6031)
-            // Load 'Resize pictures here' string
-            LoadString(g_hInst_imageResizer, IDS_RESIZE_PICTURES_HERE, strResizePictures, ARRAYSIZE(strResizePictures));
-            dragDropFlag = true;
+            dragDropFlag=true;
+            wcscpy_s(strResizePictures, ARRAYSIZE(strResizePictures), context_menu_caption_here.c_str());
         }
         else
         {
-            // Suppressing C6031 warning since return value is not required.
-#pragma warning(suppress : 6031)
-            // Load 'Resize pictures' string
-            LoadString(g_hInst_imageResizer, IDS_RESIZE_PICTURES, strResizePictures, ARRAYSIZE(strResizePictures));
+            wcscpy_s(strResizePictures, ARRAYSIZE(strResizePictures), context_menu_caption.c_str());
         }
 
         MENUITEMINFO mii;
@@ -166,8 +161,13 @@ HRESULT CContextMenuHandler::QueryContextMenu(_In_ HMENU hmenu, UINT indexMenu, 
 
         if (!InsertMenuItem(hmenu, indexMenu, TRUE, &mii))
         {
+            m_etwTrace.UpdateState(true);
+
             hr = HRESULT_FROM_WIN32(GetLastError());
             Trace::QueryContextMenuError(hr);
+
+            m_etwTrace.Flush();
+            m_etwTrace.UpdateState(false);
         }
         else
         {
@@ -198,6 +198,8 @@ HRESULT CContextMenuHandler::GetCommandString(UINT_PTR idCmd, UINT uType, _In_ U
 
 HRESULT CContextMenuHandler::InvokeCommand(_In_ CMINVOKECOMMANDINFO* pici)
 {
+    m_etwTrace.UpdateState(true);
+
     BOOL fUnicode = FALSE;
     Trace::Invoked();
     HRESULT hr = E_FAIL;
@@ -221,6 +223,10 @@ HRESULT CContextMenuHandler::InvokeCommand(_In_ CMINVOKECOMMANDINFO* pici)
         hr = ResizePictures(pici, nullptr);
     }
     Trace::InvokedRet(hr);
+
+    m_etwTrace.Flush();
+    m_etwTrace.UpdateState(false);
+
     return hr;
 }
 
@@ -348,7 +354,7 @@ HRESULT CContextMenuHandler::ResizePictures(CMINVOKECOMMANDINFO* pici, IShellIte
 
 HRESULT __stdcall CContextMenuHandler::GetTitle(IShellItemArray* /*psiItemArray*/, LPWSTR* ppszName)
 {
-    return SHStrDup(app_name.c_str(), ppszName);
+    return SHStrDup(context_menu_caption.c_str(), ppszName);
 }
 
 HRESULT __stdcall CContextMenuHandler::GetIcon(IShellItemArray* /*psiItemArray*/, LPWSTR* ppszIcon)
@@ -386,8 +392,14 @@ HRESULT __stdcall CContextMenuHandler::GetState(IShellItemArray* psiItemArray, B
     PERCEIVED type;
     PERCEIVEDFLAG flag;
     IShellItem* shellItem;
+
     //Check extension of first item in the list (the item which is right-clicked on)
-    psiItemArray->GetItemAt(0, &shellItem);
+    HRESULT getItemAtResult = psiItemArray->GetItemAt(0, &shellItem);
+    if(!SUCCEEDED(getItemAtResult)) {
+        // Avoid crashes in the following code.
+        return E_FAIL;
+    }
+
     LPTSTR pszPath;
     // Retrieves the entire file system path of the file from its shell item
     HRESULT getDisplayResult = shellItem->GetDisplayName(SIGDN_FILESYSPATH, &pszPath);
@@ -432,8 +444,14 @@ HRESULT __stdcall CContextMenuHandler::EnumSubCommands(IEnumExplorerCommand** pp
 // psiItemArray contains the list of files that have been selected when the context menu entry is invoked
 HRESULT __stdcall CContextMenuHandler::Invoke(IShellItemArray* psiItemArray, IBindCtx* /*pbc*/)
 {
+    m_etwTrace.UpdateState(true);
+
     Trace::Invoked();
     HRESULT hr = ResizePictures(nullptr, psiItemArray);
     Trace::InvokedRet(hr);
+
+    m_etwTrace.Flush();
+    m_etwTrace.UpdateState(false);
+
     return hr;
 }

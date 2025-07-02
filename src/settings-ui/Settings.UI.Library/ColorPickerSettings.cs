@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
 using ManagedCommon;
+using Microsoft.PowerToys.Settings.UI.Library.Enumerations;
 using Microsoft.PowerToys.Settings.UI.Library.Interfaces;
 
 namespace Microsoft.PowerToys.Settings.UI.Library
@@ -22,22 +24,21 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         public ColorPickerSettings()
         {
             Properties = new ColorPickerProperties();
-            Version = "2";
+            Version = "2.1";
             Name = ModuleName;
         }
+
+        private static readonly JsonSerializerOptions _serializerOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+        };
 
         public virtual void Save(ISettingsUtils settingsUtils)
         {
             // Save settings to file
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-            };
+            var options = _serializerOptions;
 
-            if (settingsUtils == null)
-            {
-                throw new ArgumentNullException(nameof(settingsUtils));
-            }
+            ArgumentNullException.ThrowIfNull(settingsUtils);
 
             settingsUtils.SaveSettings(JsonSerializer.Serialize(this, options), ModuleName);
         }
@@ -47,7 +48,21 @@ namespace Microsoft.PowerToys.Settings.UI.Library
 
         // This can be utilized in the future if the settings.json file is to be modified/deleted.
         public bool UpgradeSettingsConfiguration()
-            => false;
+        {
+            // Upgrading V1 to V2 doesn't set the version to 2.0, therefore V2 settings still report Version == 1.0
+            if (Version == "1.0")
+            {
+                if (!Enum.IsDefined(Properties.ActivationAction))
+                {
+                    Properties.ActivationAction = ColorPickerActivationAction.OpenColorPicker;
+                }
+
+                Version = "2.1";
+                return true;
+            }
+
+            return false;
+        }
 
         public static object UpgradeSettings(object oldSettingsObject)
         {

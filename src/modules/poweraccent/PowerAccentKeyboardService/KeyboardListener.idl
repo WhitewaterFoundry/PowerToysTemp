@@ -41,12 +41,14 @@ namespace PowerToys
             VK_X = 0x58,
             VK_Y = 0x59,
             VK_Z = 0x5A,
+            VK_PLUS = 0xBB,
             VK_COMMA = 0xBC,
             VK_PERIOD = 0xBE,
             VK_MINUS = 0xBD,
             VK_MULTIPLY_ = 0x6A,
             VK_SLASH_ = 0xBF,
-            VK_DIVIDE_ = 0x6F
+            VK_DIVIDE_ = 0x6F,
+            VK_BACKSLASH = 0xDC
         };
 
         enum TriggerKey
@@ -79,6 +81,7 @@ namespace PowerToys
             void SetNextCharEvent(event NextChar nextCharEvent);
             void SetIsLanguageLetterDelegate(IsLanguageLetter isLanguageLetterDelegate);
             void UpdateActivationKey(Int32 activationKey);
+            void UpdateDoNotActivateOnGameMode(Boolean doNotActivateOnGameMode);
             void UpdateInputTime(Int32 inputTime);
             void UpdateExcludedApps(String excludedApps);
         }

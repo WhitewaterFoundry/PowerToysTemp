@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Drawing;
+
 using ColorPicker.Helpers;
 using ManagedCommon;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -22,8 +23,10 @@ namespace Microsoft.ColorPicker.UnitTests
         [DataRow("HSV", "hsv(0, 0%, 0%)")]
         [DataRow("HWB", "hwb(0, 0%, 100%)")]
         [DataRow("RGB", "rgb(0, 0, 0)")]
-        [DataRow("CIELAB", "CIELab(0, 0, 0)")]
         [DataRow("CIEXYZ", "XYZ(0, 0, 0)")]
+        [DataRow("CIELAB", "CIELab(0, 0, 0)")]
+        [DataRow("Oklab", "oklab(0, 0, 0)")]
+        [DataRow("Oklch", "oklch(0, 0, 0)")]
         [DataRow("VEC4", "(0f, 0f, 0f, 1f)")]
         [DataRow("Decimal", "0")]
         [DataRow("HEX Int", "0xFF000000")]

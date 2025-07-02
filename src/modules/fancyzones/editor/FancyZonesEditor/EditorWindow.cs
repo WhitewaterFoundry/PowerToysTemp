@@ -4,6 +4,7 @@
 
 using System;
 using System.Windows;
+
 using FancyZonesEditor.Models;
 using ManagedCommon;
 
@@ -18,12 +19,12 @@ namespace FancyZonesEditor
             EditingLayout = editingLayout;
         }
 
-        protected void OnSaveApplyTemplate(object sender, RoutedEventArgs e)
+        protected void OnSave(object sender, RoutedEventArgs e)
         {
             Logger.LogTrace();
 
             // If new custom Canvas layout is created (i.e. edited Blank layout),
-            // it's type needs to be updated
+            // its type needs to be updated
             if (EditingLayout.Type == LayoutType.Blank)
             {
                 EditingLayout.Type = LayoutType.Custom;
@@ -31,15 +32,8 @@ namespace FancyZonesEditor
 
             EditingLayout.Persist();
 
-            MainWindowSettingsModel settings = ((App)Application.Current).MainWindowSettings;
-            settings.SetAppliedModel(EditingLayout);
-            App.Overlay.Monitors[App.Overlay.CurrentDesktop].SetLayoutSettings(EditingLayout);
-
             App.FancyZonesEditorIO.SerializeLayoutTemplates();
             App.FancyZonesEditorIO.SerializeCustomLayouts();
-            App.FancyZonesEditorIO.SerializeAppliedLayouts();
-            App.FancyZonesEditorIO.SerializeDefaultLayouts();
-            App.FancyZonesEditorIO.SerializeLayoutHotkeys();
 
             Close();
         }

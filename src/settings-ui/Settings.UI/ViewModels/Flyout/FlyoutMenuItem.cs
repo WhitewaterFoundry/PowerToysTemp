@@ -5,11 +5,12 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Microsoft.UI.Xaml;
+
+using ManagedCommon;
 
 namespace Microsoft.PowerToys.Settings.UI.ViewModels
 {
-    public class FlyoutMenuItem : INotifyPropertyChanged
+    public partial class FlyoutMenuItem : INotifyPropertyChanged
     {
         private bool _visible;
         private bool _isEnabled;
@@ -20,7 +21,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
         public string ToolTip { get; set; }
 
-        public string Tag { get; set; }
+        public ModuleType Tag { get; set; }
 
         public bool IsLocked { get; set; }
 

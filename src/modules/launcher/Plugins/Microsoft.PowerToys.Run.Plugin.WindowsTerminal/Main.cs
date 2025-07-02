@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+
 using Microsoft.PowerToys.Run.Plugin.WindowsTerminal.Helpers;
 using Microsoft.PowerToys.Run.Plugin.WindowsTerminal.Properties;
 using Microsoft.PowerToys.Settings.UI.Library;
@@ -23,7 +24,7 @@ namespace Microsoft.PowerToys.Run.Plugin.WindowsTerminal
         private const string OpenNewTab = nameof(OpenNewTab);
         private const string OpenQuake = nameof(OpenQuake);
         private const string ShowHiddenProfiles = nameof(ShowHiddenProfiles);
-        private readonly ITerminalQuery _terminalQuery = new TerminalQuery();
+        private readonly TerminalQuery _terminalQuery = new TerminalQuery();
         private PluginInitContext _context;
         private bool _openNewTab;
         private bool _openQuake;
@@ -118,7 +119,7 @@ namespace Microsoft.PowerToys.Run.Plugin.WindowsTerminal
                 {
                     Title = Resources.run_as_administrator,
                     Glyph = "\xE7EF",
-                    FontFamily = "Segoe MDL2 Assets",
+                    FontFamily = "Segoe Fluent Icons,Segoe MDL2 Assets",
                     AcceleratorKey = Key.Enter,
                     AcceleratorModifiers = ModifierKeys.Control | ModifierKeys.Shift,
                     Action = _ =>
@@ -199,16 +200,17 @@ namespace Microsoft.PowerToys.Run.Plugin.WindowsTerminal
             _showHiddenProfiles = showHiddenProfiles;
         }
 
-        private ImageSource GetLogo(TerminalPackage terminal)
+        private BitmapImage GetLogo(TerminalPackage terminal)
         {
             var aumid = terminal.AppUserModelId;
 
-            if (!_logoCache.ContainsKey(aumid))
+            if (!_logoCache.TryGetValue(aumid, out BitmapImage value))
             {
-                _logoCache.Add(aumid, terminal.GetLogo());
+                value = terminal.GetLogo();
+                _logoCache.Add(aumid, value);
             }
 
-            return _logoCache[aumid];
+            return value;
         }
     }
 }

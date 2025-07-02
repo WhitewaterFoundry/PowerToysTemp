@@ -4,10 +4,15 @@
 
 using System;
 using System.Runtime.InteropServices;
-using EnvironmentVariables.Helpers;
-using EnvironmentVariables.Helpers.Win32;
-using EnvironmentVariables.ViewModels;
+
+using EnvironmentVariables.Win32;
+using EnvironmentVariablesUILib;
+using EnvironmentVariablesUILib.Helpers;
+using EnvironmentVariablesUILib.ViewModels;
+using ManagedCommon;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using WinUIEx;
 
 namespace EnvironmentVariables
@@ -17,6 +22,8 @@ namespace EnvironmentVariables
     /// </summary>
     public sealed partial class MainWindow : WindowEx
     {
+        private EnvironmentVariablesMainPage MainPage { get; }
+
         public MainWindow()
         {
             this.InitializeComponent();
@@ -30,18 +37,28 @@ namespace EnvironmentVariables
             Title = title;
             AppTitleTextBlock.Text = title;
 
-            RegisterWindow();
+            var handle = this.GetWindowHandle();
+            RegisterWindow(handle);
+
+            WindowHelpers.ForceTopBorder1PixelInsetOnWindows10(handle);
+            WindowHelpers.BringToForeground(handle);
+
+            MainPage = App.GetService<EnvironmentVariablesMainPage>();
+        }
+
+        private void Grid_Loaded(object sender, RoutedEventArgs e)
+        {
+            MainGrid.Children.Add(MainPage);
+            Grid.SetRow(MainPage, 1);
         }
 
         private static readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
         private static NativeMethods.WinProc newWndProc;
         private static IntPtr oldWndProc = IntPtr.Zero;
 
-        private void RegisterWindow()
+        private void RegisterWindow(IntPtr handle)
         {
             newWndProc = new NativeMethods.WinProc(WndProc);
-
-            var handle = this.GetWindowHandle();
 
             oldWndProc = NativeMethods.SetWindowLongPtr(handle, NativeMethods.WindowLongIndexFlags.GWL_WNDPROC, newWndProc);
         }
@@ -59,7 +76,7 @@ namespace EnvironmentVariables
                             if (wParam != (IntPtr)0x12345)
                             {
                                 var viewModel = App.GetService<MainViewModel>();
-                                viewModel.EnvironmentState = Models.EnvironmentState.EnvironmentMessageReceived;
+                                viewModel.EnvironmentState = EnvironmentVariablesUILib.Models.EnvironmentState.EnvironmentMessageReceived;
                             }
                         }
 
@@ -71,6 +88,11 @@ namespace EnvironmentVariables
             }
 
             return NativeMethods.CallWindowProc(oldWndProc, hWnd, msg, wParam, lParam);
+        }
+
+        private void Window_Closed(object sender, WindowEventArgs args)
+        {
+            (App.Current as EnvironmentVariables.App).EtwTrace?.Dispose();
         }
     }
 }

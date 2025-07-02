@@ -1,21 +1,22 @@
-// Copyright (c) Microsoft Corporation
+﻿// Copyright (c) Microsoft Corporation
 // The Microsoft Corporation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
 using System;
-using interop;
+using System.Threading.Tasks;
+
 using ManagedCommon;
 using Microsoft.PowerToys.Telemetry;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Peek.Common.Constants;
 using Peek.Common.Extensions;
 using Peek.FilePreviewer.Models;
 using Peek.UI.Extensions;
 using Peek.UI.Helpers;
-using Peek.UI.Native;
 using Peek.UI.Telemetry.Events;
 using Windows.Foundation;
 using WinUIEx;
@@ -29,8 +30,13 @@ namespace Peek.UI
     {
         public MainWindowViewModel ViewModel { get; }
 
-        private ThemeListener? themeListener;
-        private bool activated;
+        private readonly ThemeListener? themeListener;
+
+        /// <summary>
+        /// Whether the delete confirmation dialog is currently open. Used to ensure only one
+        /// dialog is open at a time.
+        /// </summary>
+        private bool _isDeleteInProgress;
 
         public MainWindow()
         {
@@ -49,25 +55,103 @@ namespace Peek.UI
 
             ViewModel = Application.Current.GetService<MainWindowViewModel>();
 
-            NativeEventWaiter.WaitForEventLoop(Constants.ShowPeekEvent(), OnPeekHotkey);
-
             TitleBarControl.SetTitleBarToWindow(this);
+            ExtendsContentIntoTitleBar = true;
+            WindowHelpers.ForceTopBorder1PixelInsetOnWindows10(this.GetWindowHandle());
+            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+            AppWindow.SetIcon("Assets/Peek/Icon.ico");
 
             AppWindow.Closing += AppWindow_Closing;
+        }
+
+        private async void Content_KeyUp(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Delete)
+            {
+                e.Handled = true;
+                await DeleteItem();
+            }
+        }
+
+        private async Task DeleteItem()
+        {
+            if (ViewModel.CurrentItem == null || _isDeleteInProgress)
+            {
+                return;
+            }
+
+            try
+            {
+                _isDeleteInProgress = true;
+
+                if (Application.Current.GetService<IUserSettings>().ConfirmFileDelete)
+                {
+                    if (await ShowDeleteConfirmationDialogAsync() == ContentDialogResult.Primary)
+                    {
+                        // Delete after asking for confirmation. Persist the "Don't warn again" choice if set.
+                        ViewModel.DeleteItem(DeleteDontWarnCheckbox.IsChecked, this.GetWindowHandle());
+                    }
+                }
+                else
+                {
+                    // Delete without confirmation.
+                    ViewModel.DeleteItem(true, this.GetWindowHandle());
+                }
+            }
+            finally
+            {
+                _isDeleteInProgress = false;
+            }
+        }
+
+        private async Task<ContentDialogResult> ShowDeleteConfirmationDialogAsync()
+        {
+            DeleteDontWarnCheckbox.IsChecked = false;
+            DeleteConfirmationDialog.XamlRoot = Content.XamlRoot;
+
+            return await DeleteConfirmationDialog.ShowAsync();
+        }
+
+        /// <summary>
+        /// Toggling the window visibility and querying files when necessary.
+        /// </summary>
+        public void Toggle(bool firstActivation, Windows.Win32.Foundation.HWND foregroundWindowHandle)
+        {
+            if (firstActivation)
+            {
+                Activate();
+                Initialize(foregroundWindowHandle);
+                return;
+            }
+
+            if (DeleteConfirmationDialog.Visibility == Visibility.Visible)
+            {
+                DeleteConfirmationDialog.Hide();
+            }
+
+            if (AppWindow.IsVisible)
+            {
+                if (IsNewSingleSelectedItem(foregroundWindowHandle))
+                {
+                    Initialize(foregroundWindowHandle);
+                    Activate(); // Brings existing window into focus in case it was previously minimized
+                }
+                else
+                {
+                    Uninitialize();
+                }
+            }
+            else
+            {
+                Initialize(foregroundWindowHandle);
+            }
         }
 
         private void HandleThemeChange()
         {
             AppWindow appWindow = this.AppWindow;
 
-            if (ThemeHelpers.GetAppTheme() == AppTheme.Light)
-            {
-                appWindow.TitleBar.ButtonForegroundColor = Colors.DarkSlateGray;
-            }
-            else
-            {
-                appWindow.TitleBar.ButtonForegroundColor = Colors.White;
-            }
+            appWindow.TitleBar.ButtonForegroundColor = ThemeHelpers.GetAppTheme() == AppTheme.Light ? Colors.DarkSlateGray : Colors.White;
         }
 
         private void PeekWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -82,41 +166,6 @@ namespace Peek.UI
             }
         }
 
-        /// <summary>
-        /// Handle Peek hotkey, by toggling the window visibility and querying files when necessary.
-        /// </summary>
-        private void OnPeekHotkey()
-        {
-            // Need to read the foreground HWND before activating Peek to avoid focus stealing
-            // Foreground HWND must always be Explorer or Desktop
-            var foregroundWindowHandle = Windows.Win32.PInvoke.GetForegroundWindow();
-
-            // First Peek activation
-            if (!activated)
-            {
-                Activate();
-                Initialize(foregroundWindowHandle);
-                activated = true;
-                return;
-            }
-
-            if (AppWindow.IsVisible)
-            {
-                if (IsNewSingleSelectedItem(foregroundWindowHandle))
-                {
-                    Initialize(foregroundWindowHandle);
-                }
-                else
-                {
-                    Uninitialize();
-                }
-            }
-            else
-            {
-                Initialize(foregroundWindowHandle);
-            }
-        }
-
         private void PreviousNavigationInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
             ViewModel.AttemptPreviousNavigation();
@@ -127,7 +176,7 @@ namespace Peek.UI
             ViewModel.AttemptNextNavigation();
         }
 
-        private void EscKeyInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        private void CloseInvoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
             Uninitialize();
         }
@@ -139,6 +188,7 @@ namespace Peek.UI
 
             ViewModel.Initialize(foregroundWindowHandle);
             ViewModel.ScalingFactor = this.GetMonitorScale();
+            this.Content.KeyUp += Content_KeyUp;
 
             bootTime.Stop();
 
@@ -152,6 +202,8 @@ namespace Peek.UI
 
             ViewModel.Uninitialize();
             ViewModel.ScalingFactor = 1;
+
+            this.Content.KeyUp -= Content_KeyUp;
         }
 
         /// <summary>
@@ -161,7 +213,7 @@ namespace Peek.UI
         /// <param name="e">PreviewSizeChangedArgs</param>
         private void FilePreviewer_PreviewSizeChanged(object sender, PreviewSizeChangedArgs e)
         {
-            var foregroundWindowHandle = Windows.Win32.PInvoke.GetForegroundWindow();
+            var foregroundWindowHandle = Windows.Win32.PInvoke_PeekUI.GetForegroundWindow();
 
             var monitorSize = foregroundWindowHandle.GetMonitorSize();
             var monitorScale = foregroundWindowHandle.GetMonitorScale();
@@ -169,16 +221,16 @@ namespace Peek.UI
             // If no size is requested, try to fit to the monitor size.
             Size requestedSize = e.PreviewSize.MonitorSize ?? monitorSize;
             var contentScale = e.PreviewSize.UseEffectivePixels ? 1 : monitorScale;
-            Size scaledRequestedSize = new Size(requestedSize.Width / contentScale, requestedSize.Height / contentScale);
+            Size scaledRequestedSize = new(requestedSize.Width / contentScale, requestedSize.Height / contentScale);
 
-            // TODO: Investigate why portrait images do not perfectly fit edge-to-edge
+            // TODO: Investigate why portrait images do not perfectly fit edge-to-edge --> WindowHeightContentPadding can be 0 (or close to that) if custom? [Jay]
             Size monitorMinContentSize = GetMonitorMinContentSize(monitorScale);
             Size monitorMaxContentSize = GetMonitorMaxContentSize(monitorSize, monitorScale);
             Size adjustedContentSize = scaledRequestedSize.Fit(monitorMaxContentSize, monitorMinContentSize);
 
             var titleBarHeight = TitleBarControl.ActualHeight;
-            var desiredWindowHeight = adjustedContentSize.Height + titleBarHeight + WindowConstants.WindowWidthContentPadding;
-            var desiredWindowWidth = adjustedContentSize.Width + WindowConstants.WindowHeightContentPadding;
+            var desiredWindowWidth = adjustedContentSize.Width;
+            var desiredWindowHeight = adjustedContentSize.Height + titleBarHeight;
 
             if (!TitleBarControl.Pinned)
             {
@@ -230,12 +282,7 @@ namespace Peek.UI
 
                 var fileExplorerSelectedItemPath = selectedItems.GetItemAt(0).ToIFileSystemItem().Path;
                 var currentItemPath = ViewModel.CurrentItem?.Path;
-                if (fileExplorerSelectedItemPath == null || currentItemPath == null || fileExplorerSelectedItemPath == currentItemPath)
-                {
-                    return false;
-                }
-
-                return true;
+                return fileExplorerSelectedItemPath != null && currentItemPath != null && fileExplorerSelectedItemPath != currentItemPath;
             }
             catch (Exception ex)
             {

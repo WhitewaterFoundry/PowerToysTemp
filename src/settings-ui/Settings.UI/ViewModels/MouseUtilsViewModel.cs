@@ -5,6 +5,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+
 using global::PowerToys.GPOWrapper;
 using Microsoft.PowerToys.Settings.UI.Library;
 using Microsoft.PowerToys.Settings.UI.Library.Helpers;
@@ -13,7 +14,7 @@ using Microsoft.PowerToys.Settings.Utilities;
 
 namespace Microsoft.PowerToys.Settings.UI.ViewModels
 {
-    public class MouseUtilsViewModel : Observable
+    public partial class MouseUtilsViewModel : Observable
     {
         private ISettingsUtils SettingsUtils { get; set; }
 
@@ -23,8 +24,6 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
         private MouseHighlighterSettings MouseHighlighterSettingsConfig { get; set; }
 
-        private MouseJumpSettings MouseJumpSettingsConfig { get; set; }
-
         private MousePointerCrosshairsSettings MousePointerCrosshairsSettingsConfig { get; set; }
 
         public MouseUtilsViewModel(ISettingsUtils settingsUtils, ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<FindMyMouseSettings> findMyMouseSettingsRepository, ISettingsRepository<MouseHighlighterSettings> mouseHighlighterSettingsRepository, ISettingsRepository<MouseJumpSettings> mouseJumpSettingsRepository, ISettingsRepository<MousePointerCrosshairsSettings> mousePointerCrosshairsSettingsRepository, Func<string, int> ipcMSGCallBackFunc)
@@ -32,10 +31,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             SettingsUtils = settingsUtils;
 
             // To obtain the general settings configurations of PowerToys Settings.
-            if (settingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(settingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(settingsRepository);
 
             GeneralSettingsConfig = settingsRepository.SettingsConfig;
 
@@ -43,13 +39,11 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
             // To obtain the find my mouse settings, if the file exists.
             // If not, to create a file with the default settings and to return the default configurations.
-            if (findMyMouseSettingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(findMyMouseSettingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(findMyMouseSettingsRepository);
 
             FindMyMouseSettingsConfig = findMyMouseSettingsRepository.SettingsConfig;
             _findMyMouseActivationMethod = FindMyMouseSettingsConfig.Properties.ActivationMethod.Value < 4 ? FindMyMouseSettingsConfig.Properties.ActivationMethod.Value : 0;
+            _findMyMouseIncludeWinKey = FindMyMouseSettingsConfig.Properties.IncludeWinKey.Value;
             _findMyMouseDoNotActivateOnGameMode = FindMyMouseSettingsConfig.Properties.DoNotActivateOnGameMode.Value;
 
             string backgroundColor = FindMyMouseSettingsConfig.Properties.BackgroundColor.Value;
@@ -64,11 +58,10 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             _findMyMouseSpotlightInitialZoom = FindMyMouseSettingsConfig.Properties.SpotlightInitialZoom.Value;
             _findMyMouseExcludedApps = FindMyMouseSettingsConfig.Properties.ExcludedApps.Value;
             _findMyMouseShakingMinimumDistance = FindMyMouseSettingsConfig.Properties.ShakingMinimumDistance.Value;
+            _findMyMouseShakingIntervalMs = FindMyMouseSettingsConfig.Properties.ShakingIntervalMs.Value;
+            _findMyMouseShakingFactor = FindMyMouseSettingsConfig.Properties.ShakingFactor.Value;
 
-            if (mouseHighlighterSettingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(mouseHighlighterSettingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(mouseHighlighterSettingsRepository);
 
             MouseHighlighterSettingsConfig = mouseHighlighterSettingsRepository.SettingsConfig;
             string leftClickColor = MouseHighlighterSettingsConfig.Properties.LeftButtonClickColor.Value;
@@ -79,24 +72,16 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
             string alwaysColor = MouseHighlighterSettingsConfig.Properties.AlwaysColor.Value;
             _highlighterAlwaysColor = !string.IsNullOrEmpty(alwaysColor) ? alwaysColor : "#00FF0000";
+            _isSpotlightModeEnabled = MouseHighlighterSettingsConfig.Properties.SpotlightMode.Value;
 
             _highlighterRadius = MouseHighlighterSettingsConfig.Properties.HighlightRadius.Value;
             _highlightFadeDelayMs = MouseHighlighterSettingsConfig.Properties.HighlightFadeDelayMs.Value;
             _highlightFadeDurationMs = MouseHighlighterSettingsConfig.Properties.HighlightFadeDurationMs.Value;
             _highlighterAutoActivate = MouseHighlighterSettingsConfig.Properties.AutoActivate.Value;
 
-            if (mouseJumpSettingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(mouseJumpSettingsRepository));
-            }
+            this.InitializeMouseJumpSettings(mouseJumpSettingsRepository);
 
-            MouseJumpSettingsConfig = mouseJumpSettingsRepository.SettingsConfig;
-            MouseJumpSettingsConfig.Properties.ThumbnailSize.PropertyChanged += MouseJumpThumbnailSizePropertyChanged;
-
-            if (mousePointerCrosshairsSettingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(mousePointerCrosshairsSettingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(mousePointerCrosshairsSettingsRepository);
 
             MousePointerCrosshairsSettingsConfig = mousePointerCrosshairsSettingsRepository.SettingsConfig;
 
@@ -149,17 +134,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                 _isMouseHighlighterEnabled = GeneralSettingsConfig.Enabled.MouseHighlighter;
             }
 
-            _jumpEnabledGpoRuleConfiguration = GPOWrapper.GetConfiguredMouseJumpEnabledValue();
-            if (_jumpEnabledGpoRuleConfiguration == GpoRuleConfigured.Disabled || _jumpEnabledGpoRuleConfiguration == GpoRuleConfigured.Enabled)
-            {
-                // Get the enabled state from GPO.
-                _jumpEnabledStateIsGPOConfigured = true;
-                _isMouseJumpEnabled = _jumpEnabledGpoRuleConfiguration == GpoRuleConfigured.Enabled;
-            }
-            else
-            {
-                _isMouseJumpEnabled = GeneralSettingsConfig.Enabled.MouseJump;
-            }
+            this.InitializeMouseJumpEnabledValues();
 
             _mousePointerCrosshairsEnabledGpoRuleConfiguration = GPOWrapper.GetConfiguredMousePointerCrosshairsEnabledValue();
             if (_mousePointerCrosshairsEnabledGpoRuleConfiguration == GpoRuleConfigured.Disabled || _mousePointerCrosshairsEnabledGpoRuleConfiguration == GpoRuleConfigured.Enabled)
@@ -218,6 +193,24 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                 {
                     _findMyMouseActivationMethod = value;
                     FindMyMouseSettingsConfig.Properties.ActivationMethod.Value = value;
+                    NotifyFindMyMousePropertyChanged();
+                }
+            }
+        }
+
+        public bool FindMyMouseIncludeWinKey
+        {
+            get
+            {
+                return _findMyMouseIncludeWinKey;
+            }
+
+            set
+            {
+                if (_findMyMouseIncludeWinKey != value)
+                {
+                    _findMyMouseIncludeWinKey = value;
+                    FindMyMouseSettingsConfig.Properties.IncludeWinKey.Value = value;
                     NotifyFindMyMousePropertyChanged();
                 }
             }
@@ -417,6 +410,42 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             }
         }
 
+        public int FindMyMouseShakingIntervalMs
+        {
+            get
+            {
+                return _findMyMouseShakingIntervalMs;
+            }
+
+            set
+            {
+                if (value != _findMyMouseShakingIntervalMs)
+                {
+                    _findMyMouseShakingIntervalMs = value;
+                    FindMyMouseSettingsConfig.Properties.ShakingIntervalMs.Value = value;
+                    NotifyFindMyMousePropertyChanged();
+                }
+            }
+        }
+
+        public int FindMyMouseShakingFactor
+        {
+            get
+            {
+                return _findMyMouseShakingFactor;
+            }
+
+            set
+            {
+                if (value != _findMyMouseShakingFactor)
+                {
+                    _findMyMouseShakingFactor = value;
+                    FindMyMouseSettingsConfig.Properties.ShakingFactor.Value = value;
+                    NotifyFindMyMousePropertyChanged();
+                }
+            }
+        }
+
         public void NotifyFindMyMousePropertyChanged([CallerMemberName] string propertyName = null)
         {
             OnPropertyChanged(propertyName);
@@ -532,6 +561,20 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             }
         }
 
+        public bool IsSpotlightModeEnabled
+        {
+            get => _isSpotlightModeEnabled;
+            set
+            {
+                if (_isSpotlightModeEnabled != value)
+                {
+                    _isSpotlightModeEnabled = value;
+                    MouseHighlighterSettingsConfig.Properties.SpotlightMode.Value = value;
+                    NotifyMouseHighlighterPropertyChanged();
+                }
+            }
+        }
+
         public int MouseHighlighterRadius
         {
             get
@@ -612,87 +655,6 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             SndModuleSettings<SndMouseHighlighterSettings> ipcMessage = new SndModuleSettings<SndMouseHighlighterSettings>(outsettings);
             SendConfigMSG(ipcMessage.ToJsonString());
             SettingsUtils.SaveSettings(MouseHighlighterSettingsConfig.ToJsonString(), MouseHighlighterSettings.ModuleName);
-        }
-
-        public bool IsMouseJumpEnabled
-        {
-            get => _isMouseJumpEnabled;
-            set
-            {
-                if (_jumpEnabledStateIsGPOConfigured)
-                {
-                    // If it's GPO configured, shouldn't be able to change this state.
-                    return;
-                }
-
-                if (_isMouseJumpEnabled != value)
-                {
-                    _isMouseJumpEnabled = value;
-
-                    GeneralSettingsConfig.Enabled.MouseJump = value;
-                    OnPropertyChanged(nameof(_isMouseJumpEnabled));
-
-                    OutGoingGeneralSettings outgoing = new OutGoingGeneralSettings(GeneralSettingsConfig);
-                    SendConfigMSG(outgoing.ToString());
-
-                    NotifyMouseJumpPropertyChanged();
-                }
-            }
-        }
-
-        public bool IsJumpEnabledGpoConfigured
-        {
-            get => _jumpEnabledStateIsGPOConfigured;
-        }
-
-        public HotkeySettings MouseJumpActivationShortcut
-        {
-            get
-            {
-                return MouseJumpSettingsConfig.Properties.ActivationShortcut;
-            }
-
-            set
-            {
-                if (MouseJumpSettingsConfig.Properties.ActivationShortcut != value)
-                {
-                    MouseJumpSettingsConfig.Properties.ActivationShortcut = value ?? MouseJumpSettingsConfig.Properties.DefaultActivationShortcut;
-                    NotifyMouseJumpPropertyChanged();
-                }
-            }
-        }
-
-        public MouseJumpThumbnailSize MouseJumpThumbnailSize
-        {
-            get
-            {
-                return MouseJumpSettingsConfig.Properties.ThumbnailSize;
-            }
-
-            set
-            {
-                if ((MouseJumpSettingsConfig.Properties.ThumbnailSize.Width != value?.Width)
-                    && (MouseJumpSettingsConfig.Properties.ThumbnailSize.Height != value?.Height))
-                {
-                    MouseJumpSettingsConfig.Properties.ThumbnailSize = value;
-                    NotifyMouseJumpPropertyChanged();
-                }
-            }
-        }
-
-        public void MouseJumpThumbnailSizePropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            NotifyMouseJumpPropertyChanged(nameof(MouseJumpThumbnailSize));
-        }
-
-        public void NotifyMouseJumpPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            OnPropertyChanged(propertyName);
-
-            SndMouseJumpSettings outsettings = new SndMouseJumpSettings(MouseJumpSettingsConfig);
-            SndModuleSettings<SndMouseJumpSettings> ipcMessage = new SndModuleSettings<SndMouseJumpSettings>(outsettings);
-            SendConfigMSG(ipcMessage.ToJsonString());
-            SettingsUtils.SaveSettings(MouseJumpSettingsConfig.ToJsonString(), MouseJumpSettings.ModuleName);
         }
 
         public bool IsMousePointerCrosshairsEnabled
@@ -950,6 +912,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private bool _findMyMouseEnabledStateIsGPOConfigured;
         private bool _isFindMyMouseEnabled;
         private int _findMyMouseActivationMethod;
+        private bool _findMyMouseIncludeWinKey;
         private bool _findMyMouseDoNotActivateOnGameMode;
         private string _findMyMouseBackgroundColor;
         private string _findMyMouseSpotlightColor;
@@ -959,6 +922,8 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private int _findMyMouseSpotlightInitialZoom;
         private string _findMyMouseExcludedApps;
         private int _findMyMouseShakingMinimumDistance;
+        private int _findMyMouseShakingIntervalMs;
+        private int _findMyMouseShakingFactor;
 
         private GpoRuleConfigured _highlighterEnabledGpoRuleConfiguration;
         private bool _highlighterEnabledStateIsGPOConfigured;
@@ -966,14 +931,11 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private string _highlighterLeftButtonClickColor;
         private string _highlighterRightButtonClickColor;
         private string _highlighterAlwaysColor;
+        private bool _isSpotlightModeEnabled;
         private int _highlighterRadius;
         private int _highlightFadeDelayMs;
         private int _highlightFadeDurationMs;
         private bool _highlighterAutoActivate;
-
-        private GpoRuleConfigured _jumpEnabledGpoRuleConfiguration;
-        private bool _jumpEnabledStateIsGPOConfigured;
-        private bool _isMouseJumpEnabled;
 
         private GpoRuleConfigured _mousePointerCrosshairsEnabledGpoRuleConfiguration;
         private bool _mousePointerCrosshairsEnabledStateIsGPOConfigured;

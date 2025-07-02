@@ -5,15 +5,17 @@
 using System;
 using System.Globalization;
 using System.Text.Json;
+
 using global::PowerToys.GPOWrapper;
 using Microsoft.PowerToys.Settings.UI.Library;
 using Microsoft.PowerToys.Settings.UI.Library.Helpers;
 using Microsoft.PowerToys.Settings.UI.Library.Interfaces;
 using Microsoft.PowerToys.Settings.UI.Library.ViewModels.Commands;
+using Microsoft.PowerToys.Settings.UI.SerializationContext;
 
 namespace Microsoft.PowerToys.Settings.UI.ViewModels
 {
-    public class RegistryPreviewViewModel : Observable
+    public partial class RegistryPreviewViewModel : Observable
     {
         private GeneralSettings GeneralSettingsConfig { get; set; }
 
@@ -22,10 +24,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         public RegistryPreviewViewModel(ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<RegistryPreviewSettings> registryPreviewSettingsRepository, Func<string, int> ipcMSGCallBackFunc)
         {
             // To obtain the general settings configurations of PowerToys Settings.
-            if (settingsRepository == null)
-            {
-                throw new ArgumentNullException(nameof(settingsRepository));
-            }
+            ArgumentNullException.ThrowIfNull(settingsRepository);
 
             GeneralSettingsConfig = settingsRepository.SettingsConfig;
 
@@ -123,7 +122,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                        CultureInfo.InvariantCulture,
                        "{{ \"powertoys\": {{ \"{0}\": {1} }} }}",
                        RegistryPreviewSettings.ModuleName,
-                       JsonSerializer.Serialize(_settings)));
+                       JsonSerializer.Serialize(_settings, SourceGenerationContextContext.Default.RegistryPreviewSettings)));
         }
     }
 }

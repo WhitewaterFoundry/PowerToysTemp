@@ -10,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
+
 using PowerLauncher.Helper;
 using Wox.Infrastructure.UserSettings;
 using Wox.Plugin;
@@ -50,7 +51,7 @@ namespace PowerLauncher.ViewModel
         {
             get
             {
-                return _settings.MaxResultsToShow * 75;
+                return (_settings.MaxResultsToShow * 56) + 16;
             }
         }
 
@@ -97,7 +98,7 @@ namespace PowerLauncher.ViewModel
             }
         }
 
-        private Visibility _visibility = Visibility.Hidden;
+        private Visibility _visibility = Visibility.Collapsed;
 
         public Visibility Visibility
         {
@@ -263,10 +264,7 @@ namespace PowerLauncher.ViewModel
         /// </summary>
         public void AddResults(List<Result> newRawResults, CancellationToken ct)
         {
-            if (newRawResults == null)
-            {
-                throw new ArgumentNullException(nameof(newRawResults));
-            }
+            ArgumentNullException.ThrowIfNull(newRawResults);
 
             List<ResultViewModel> newResults = new List<ResultViewModel>(newRawResults.Count);
             foreach (Result r in newRawResults)
@@ -284,11 +282,11 @@ namespace PowerLauncher.ViewModel
 
             if (options.SearchQueryTuningEnabled)
             {
-                sorted = Results.OrderByDescending(x => (x.Result.Metadata.WeightBoost + x.Result.Score + (x.Result.SelectedCount * options.SearchClickedItemWeight))).ToList();
+                sorted = Results.OrderByDescending(x => x.Result.GetSortOrderScore(options.SearchClickedItemWeight)).ToList();
             }
             else
             {
-                sorted = Results.OrderByDescending(x => (x.Result.Metadata.WeightBoost + x.Result.Score + (x.Result.SelectedCount * 5))).ToList();
+                sorted = Results.OrderByDescending(x => x.Result.GetSortOrderScore(5)).ToList();
             }
 
             // remove history items in they are in the list as non-history items
